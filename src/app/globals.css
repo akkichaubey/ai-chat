@@ -1,0 +1,220 @@
+@import "tailwindcss";
+
+:root {
+  --background: #131314;
+  --foreground: #e3e3e3;
+  --card: #1e1f20;
+  --card-foreground: #e3e3e3;
+  --popover: #1e1f20;
+  --popover-foreground: #e3e3e3;
+  --primary: #a8c7fa;
+  --primary-foreground: #131314;
+  --secondary: #2d2f31;
+  --secondary-foreground: #e3e3e3;
+  --muted: #2d2f31;
+  --muted-foreground: #c4c7c5;
+  --accent: #2d2f31;
+  --accent-foreground: #e3e3e3;
+  --destructive: #f28b82;
+  --destructive-foreground: #131314;
+  --border: #303134;
+  --input: #1e1f20;
+  --ring: #a8c7fa;
+}
+
+/* Claude Charcoal Theme */
+.theme-claude {
+  --background: #191919;
+  --foreground: #f2efe6;
+  --card: #222222;
+  --card-foreground: #f2efe6;
+  --popover: #222222;
+  --popover-foreground: #f2efe6;
+  --primary: #cc9c7a;
+  --primary-foreground: #191919;
+  --secondary: #2f2f2f;
+  --secondary-foreground: #f2efe6;
+  --muted: #2f2f2f;
+  --muted-foreground: #b3b0a8;
+  --accent: #cc9c7a;
+  --accent-foreground: #191919;
+  --border: #333333;
+  --input: #1a1a1a;
+  --ring: #cc9c7a;
+}
+
+/* Midnight Cosmic Purple Theme */
+.theme-midnight {
+  --background: #090616;
+  --foreground: #f1ecf9;
+  --card: #120e29;
+  --card-foreground: #f1ecf9;
+  --popover: #120e29;
+  --popover-foreground: #f1ecf9;
+  --primary: #c084fc;
+  --primary-foreground: #090616;
+  --secondary: #1e1b4b;
+  --secondary-foreground: #f1ecf9;
+  --muted: #1e1b4b;
+  --muted-foreground: #9ca3af;
+  --accent: #c084fc;
+  --accent-foreground: #090616;
+  --border: #2e2a47;
+  --input: #0c0822;
+  --ring: #c084fc;
+}
+
+/* Cyberpunk Neon Theme */
+.theme-cyberpunk {
+  --background: #040406;
+  --foreground: #00ffcc;
+  --card: #0d0d12;
+  --card-foreground: #00ffcc;
+  --popover: #0d0d12;
+  --popover-foreground: #00ffcc;
+  --primary: #ff007f;
+  --primary-foreground: #040406;
+  --secondary: #1a1a24;
+  --secondary-foreground: #00ffcc;
+  --muted: #1a1a24;
+  --muted-foreground: #a8a29e;
+  --accent: #ff007f;
+  --accent-foreground: #040406;
+  --border: #ff007f;
+  --input: #050508;
+  --ring: #00ffcc;
+}
+
+/* Forest Green Theme */
+.theme-forest {
+  --background: #0a0f0b;
+  --foreground: #ecfdf5;
+  --card: #121c14;
+  --card-foreground: #ecfdf5;
+  --popover: #121c14;
+  --popover-foreground: #ecfdf5;
+  --primary: #4ade80;
+  --primary-foreground: #0a0f0b;
+  --secondary: #1d2d20;
+  --secondary-foreground: #ecfdf5;
+  --muted: #1d2d20;
+  --muted-foreground: #a7f3d0;
+  --accent: #4ade80;
+  --accent-foreground: #0a0f0b;
+  --border: #223c28;
+  --input: #090d0a;
+  --ring: #4ade80;
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Override slate colors with Google AI Studio's Material grays */
+  --color-slate-50: #ffffff;
+  --color-slate-100: #f1f3f4;
+  --color-slate-200: #e3e3e3;
+  --color-slate-300: #d2d3d5;
+  --color-slate-400: #c4c7c5;
+  --color-slate-500: #8e918f;
+  --color-slate-600: #747775;
+  --color-slate-700: #5f6368;
+  --color-slate-800: #3c4043;
+  --color-slate-900: #202124;
+  --color-slate-950: #131314;
+
+  --font-sans: var(--font-geist-sans), Inter, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(19, 19, 20, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Custom markdown formatting */
+.prose pre {
+  background-color: #0f172a !important;
+  border: 1px solid #1e293b;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.prose code {
+  color: #f43f5e;
+  background-color: #1e293b;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+.prose pre code {
+  color: inherit;
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* Animations */
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.15);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 1.5s infinite ease-in-out;
+}
