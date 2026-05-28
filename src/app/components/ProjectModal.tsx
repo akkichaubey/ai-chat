@@ -30,15 +30,18 @@ export default function ProjectModal({
 
   // Reset fields when modal opens or active project changes
   useEffect(() => {
-    if (project) {
-      setName(project.name);
-      setDescription(project.description);
-      setInstructions(project.instructions || '');
-    } else {
-      setName('');
-      setDescription('');
-      setInstructions('');
-    }
+    const timer = setTimeout(() => {
+      if (project) {
+        setName(project.name);
+        setDescription(project.description);
+        setInstructions(project.instructions || '');
+      } else {
+        setName('');
+        setDescription('');
+        setInstructions('');
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [project, isOpen]);
 
   if (!isOpen) return null;

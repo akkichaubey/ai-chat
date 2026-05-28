@@ -8,11 +8,36 @@ import {
   Volume2, 
   VolumeX, 
   Settings, 
-  RefreshCw, 
-  HelpCircle,
-  Brain,
-  MessageSquare
+  Brain
 } from 'lucide-react';
+
+interface SpeechRecognitionEvent {
+  results: {
+    [index: number]: {
+      [index: number]: {
+        transcript: string;
+      };
+      length: number;
+    };
+    length: number;
+  };
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+}
+
+interface SpeechRecognitionInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+}
 
 interface Attachment {
   name: string;
@@ -68,178 +93,12 @@ export default function VoiceModeOverlay({
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   // Refs for Speech Recognition and Synthesis
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const isRecognitionActiveRef = useRef(false);
   const speechQueueRef = useRef<string[]>([]);
   const isSpeakingRef = useRef(false);
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [spokenIndex, setSpokenIndex] = useState(0);
-
-  // 1. Fetch available speech synthesis voices
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      setAvailableVoices(voices);
-      
-      // Default voice selection logic
-      if (voices.length > 0 && !selectedVoiceName) {
-        // Try to find a high quality English voice by default
-        const defaultVoice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) || 
-                             voices.find(v => v.lang.startsWith('en')) || 
-                             voices[0];
-        setSelectedVoiceName(defaultVoice.name);
-      }
-    };
-
-    loadVoices();
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-  }, [selectedVoiceName]);
-
-  // 2. Load settings from localStorage on mount
-  useEffect(() => {
-    const savedLang = localStorage.getItem('gemma_voice_lang');
-    const savedVoice = localStorage.getItem('gemma_voice_name');
-    const savedRate = localStorage.getItem('gemma_voice_rate');
-    const savedCont = localStorage.getItem('gemma_voice_continuous');
-    const savedAuto = localStorage.getItem('gemma_voice_autoplay');
-
-    if (savedLang) setSelectedLanguage(savedLang);
-    if (savedVoice) setSelectedVoiceName(savedVoice);
-    if (savedRate) setVoiceRate(parseFloat(savedRate));
-    if (savedCont) setContinuousMode(savedCont === 'true');
-    if (savedAuto) setAutoplayEnabled(savedAuto === 'true');
-  }, []);
-
-  // 3. Initialize Speech Recognition
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const rec = new SpeechRecognition();
-      rec.continuous = false; // We want single utterances, then we auto-submit
-      rec.interimResults = false;
-      rec.lang = selectedLanguage;
-
-      rec.onstart = () => {
-        isRecognitionActiveRef.current = true;
-        if (!isMicMuted) {
-          setVoiceStatus('listening');
-        }
-      };
-
-      rec.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        const text = transcript.trim();
-        if (text) {
-          // Send transcript to page.tsx handler
-          onSendMessage(text, []);
-          setVoiceStatus('thinking');
-        } else {
-          setVoiceStatus('idle');
-        }
-      };
-
-      rec.onerror = (event: any) => {
-        isRecognitionActiveRef.current = false;
-        console.error('Speech recognition error in overlay:', event.error);
-        if (event.error === 'not-allowed') {
-          alert('Microphone access is blocked. Please enable permissions in your browser settings.');
-          setIsMicMuted(true);
-        }
-        setVoiceStatus('idle');
-      };
-
-      rec.onend = () => {
-        isRecognitionActiveRef.current = false;
-        // If status is still listening (e.g. silence timeout), revert to idle
-        setVoiceStatus(prev => prev === 'listening' ? 'idle' : prev);
-      };
-
-      recognitionRef.current = rec;
-    }
-  }, [selectedLanguage, isMicMuted, onSendMessage]);
-
-  // 4. Start listening on open (if mic is active)
-  useEffect(() => {
-    if (isOpen) {
-      // Cancel speech synthesis of whatever else is going on
-      cancelSpeech();
-      
-      // Delay slightly to allow transition
-      const timer = setTimeout(() => {
-        if (!isMicMuted && !isLoading) {
-          startListening();
-        }
-      }, 300);
-      
-      return () => clearTimeout(timer);
-    } else {
-      // Stopped
-      cancelSpeech();
-      stopListening();
-    }
-  }, [isOpen]);
-
-  // 5. Reset spoken tracker when model starts thinking
-  useEffect(() => {
-    if (isLoading) {
-      setSpokenIndex(0);
-      cancelSpeech();
-      setVoiceStatus('thinking');
-    }
-  }, [isLoading]);
-
-  // 6. Sentence splitter / Speech generator
-  useEffect(() => {
-    if (!isOpen || isSpeakerMuted || !autoplayEnabled) return;
-
-    if (activeResponseText.length > spokenIndex) {
-      const pendingText = activeResponseText.slice(spokenIndex);
-
-      // Sentence separator: matches periods, question marks, exclamation marks, and newlines
-      const sentenceBoundaryRegex = /[^.!?\n]+[.!?\n]+/g;
-      let match;
-      let lastMatchEnd = 0;
-      const newSentences: string[] = [];
-
-      while ((match = sentenceBoundaryRegex.exec(pendingText)) !== null) {
-        newSentences.push(match[0].trim());
-        lastMatchEnd = match.index + match[0].length;
-      }
-
-      if (newSentences.length > 0) {
-        newSentences.forEach(sentence => {
-          enqueueSpeech(sentence);
-        });
-        setSpokenIndex(prev => prev + lastMatchEnd);
-      }
-    }
-  }, [activeResponseText, spokenIndex, isOpen, isSpeakerMuted, autoplayEnabled]);
-
-  // 7. Stream finish: speak remaining text
-  useEffect(() => {
-    if (isFinished && activeResponseText.length > spokenIndex && isOpen) {
-      const finalSentence = activeResponseText.slice(spokenIndex).trim();
-      if (finalSentence) {
-        enqueueSpeech(finalSentence);
-      }
-      setSpokenIndex(activeResponseText.length);
-    }
-  }, [isFinished, activeResponseText, spokenIndex, isOpen]);
-
-  // 8. Auto-listen when AI completes speaking (Continuous Mode)
-  useEffect(() => {
-    if (isFinished && !isSpeakingRef.current && speechQueueRef.current.length === 0 && voiceStatus === 'idle' && isOpen) {
-      if (continuousMode && !isMicMuted && !isLoading) {
-        startListening();
-      }
-    }
-  }, [isFinished, voiceStatus, continuousMode, isMicMuted, isLoading, isOpen]);
 
   // Synthesis Queue Handlers
   const enqueueSpeech = (text: string) => {
@@ -260,7 +119,7 @@ export default function VoiceModeOverlay({
     isSpeakingRef.current = true;
     setVoiceStatus('speaking');
 
-    const SpeechSynthesisUtterance = (window as any).SpeechSynthesisUtterance;
+    const SpeechSynthesisUtterance = (window as unknown as Record<string, unknown>).SpeechSynthesisUtterance as typeof window.SpeechSynthesisUtterance;
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     
     utterance.rate = voiceRate;
@@ -278,7 +137,7 @@ export default function VoiceModeOverlay({
       processSpeechQueue();
     };
 
-    utterance.onerror = (e: any) => {
+    utterance.onerror = (e: SpeechSynthesisErrorEvent) => {
       // Ignore normal interruption and cancel events
       if (e.error === 'interrupted' || e.error === 'canceled') {
         isSpeakingRef.current = false;
@@ -289,7 +148,9 @@ export default function VoiceModeOverlay({
       console.error('Speech synthesis utterance error:', e);
       isSpeakingRef.current = false;
       currentUtteranceRef.current = null;
-      setVoiceStatus('idle');
+      setTimeout(() => {
+        setVoiceStatus('idle');
+      }, 0);
       processSpeechQueue();
     };
 
@@ -304,7 +165,9 @@ export default function VoiceModeOverlay({
     if (typeof window !== 'undefined') {
       window.speechSynthesis.cancel();
     }
-    setVoiceStatus('idle');
+    setTimeout(() => {
+      setVoiceStatus('idle');
+    }, 0);
   };
 
   // Listening controls
@@ -393,6 +256,190 @@ export default function VoiceModeOverlay({
     setAutoplayEnabled(val);
     localStorage.setItem('gemma_voice_autoplay', String(val));
   };
+
+  // 1. Fetch available speech synthesis voices
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      setAvailableVoices(voices);
+      
+      // Default voice selection logic
+      if (voices.length > 0 && !selectedVoiceName) {
+        // Try to find a high quality English voice by default
+        const defaultVoice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) || 
+                             voices.find(v => v.lang.startsWith('en')) || 
+                             voices[0];
+        setSelectedVoiceName(defaultVoice.name);
+      }
+    };
+
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, [selectedVoiceName]);
+
+  // 2. Load settings from localStorage on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const savedLang = localStorage.getItem('gemma_voice_lang');
+      const savedVoice = localStorage.getItem('gemma_voice_name');
+      const savedRate = localStorage.getItem('gemma_voice_rate');
+      const savedCont = localStorage.getItem('gemma_voice_continuous');
+      const savedAuto = localStorage.getItem('gemma_voice_autoplay');
+
+      if (savedLang) setSelectedLanguage(savedLang);
+      if (savedVoice) setSelectedVoiceName(savedVoice);
+      if (savedRate) setVoiceRate(parseFloat(savedRate));
+      if (savedCont) setContinuousMode(savedCont === 'true');
+      if (savedAuto) setAutoplayEnabled(savedAuto === 'true');
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 3. Initialize Speech Recognition
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const SpeechRecognition = ((window as unknown) as Record<string, new () => SpeechRecognitionInstance>).SpeechRecognition || ((window as unknown) as Record<string, new () => SpeechRecognitionInstance>).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = false; // We want single utterances, then we auto-submit
+      rec.interimResults = false;
+      rec.lang = selectedLanguage;
+
+      rec.onstart = () => {
+        isRecognitionActiveRef.current = true;
+        if (!isMicMuted) {
+          setVoiceStatus('listening');
+        }
+      };
+
+      rec.onresult = (event: SpeechRecognitionEvent) => {
+        const transcript = event.results[0][0].transcript;
+        const text = transcript.trim();
+        if (text) {
+          // Send transcript to page.tsx handler
+          onSendMessage(text, []);
+          setVoiceStatus('thinking');
+        } else {
+          setVoiceStatus('idle');
+        }
+      };
+
+      rec.onerror = (event: SpeechRecognitionErrorEvent) => {
+        isRecognitionActiveRef.current = false;
+        console.error('Speech recognition error in overlay:', event.error);
+        if (event.error === 'not-allowed') {
+          alert('Microphone access is blocked. Please enable permissions in your browser settings.');
+          setIsMicMuted(true);
+        }
+        setVoiceStatus('idle');
+      };
+
+      rec.onend = () => {
+        isRecognitionActiveRef.current = false;
+        // If status is still listening (e.g. silence timeout), revert to idle
+        setVoiceStatus(prev => prev === 'listening' ? 'idle' : prev);
+      };
+
+      recognitionRef.current = rec;
+    }
+  }, [selectedLanguage, isMicMuted, onSendMessage]);
+
+  // 4. Start listening on open (if mic is active)
+  useEffect(() => {
+    if (isOpen) {
+      // Cancel speech synthesis of whatever else is going on
+      cancelSpeech();
+      
+      // Delay slightly to allow transition
+      const timer = setTimeout(() => {
+        if (!isMicMuted && !isLoading) {
+          startListening();
+        }
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    } else {
+      // Stopped
+      cancelSpeech();
+      stopListening();
+    }
+  }, [isOpen]);
+
+  // 5. Reset spoken tracker when model starts thinking
+  useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        setSpokenIndex(0);
+        setVoiceStatus('thinking');
+      }, 0);
+      cancelSpeech();
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+
+  // 6. Sentence splitter / Speech generator
+  useEffect(() => {
+    if (!isOpen || isSpeakerMuted || !autoplayEnabled) return;
+
+    let timer: NodeJS.Timeout;
+    if (activeResponseText.length > spokenIndex) {
+      const pendingText = activeResponseText.slice(spokenIndex);
+
+      // Sentence separator: matches periods, question marks, exclamation marks, and newlines
+      const sentenceBoundaryRegex = /[^.!?\n]+[.!?\n]+/g;
+      let match;
+      let lastMatchEnd = 0;
+      const newSentences: string[] = [];
+
+      while ((match = sentenceBoundaryRegex.exec(pendingText)) !== null) {
+        newSentences.push(match[0].trim());
+        lastMatchEnd = match.index + match[0].length;
+      }
+
+      if (newSentences.length > 0) {
+        newSentences.forEach(sentence => {
+          enqueueSpeech(sentence);
+        });
+        timer = setTimeout(() => {
+          setSpokenIndex(prev => prev + lastMatchEnd);
+        }, 0);
+      }
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [activeResponseText, spokenIndex, isOpen, isSpeakerMuted, autoplayEnabled]);
+
+  // 7. Stream finish: speak remaining text
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isFinished && activeResponseText.length > spokenIndex && isOpen) {
+      const finalSentence = activeResponseText.slice(spokenIndex).trim();
+      if (finalSentence) {
+        enqueueSpeech(finalSentence);
+      }
+      timer = setTimeout(() => {
+        setSpokenIndex(activeResponseText.length);
+      }, 0);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isFinished, activeResponseText, spokenIndex, isOpen]);
+
+  // 8. Auto-listen when AI completes speaking (Continuous Mode)
+  useEffect(() => {
+    if (isFinished && !isSpeakingRef.current && speechQueueRef.current.length === 0 && voiceStatus === 'idle' && isOpen) {
+      if (continuousMode && !isMicMuted && !isLoading) {
+        startListening();
+      }
+    }
+  }, [isFinished, voiceStatus, continuousMode, isMicMuted, isLoading, isOpen]);
 
   if (!isOpen) return null;
 

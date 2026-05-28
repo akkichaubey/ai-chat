@@ -106,140 +106,142 @@ export default function Home() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [injectedPrompt, setInjectedPrompt] = useState('');
 
-  // 1. Initial Load (runs only on mount to prevent hydration mismatch)
   useEffect(() => {
-    setMounted(true);
+    const mountTimer = setTimeout(() => {
+      setMounted(true);
 
-    // Load Settings
-    const savedSettings = localStorage.getItem('gemma_chat_settings');
-    let loadedSettings = DEFAULT_SETTINGS;
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        loadedSettings = {
-          ...DEFAULT_SETTINGS,
-          ...parsed
+      // Load Settings
+      const savedSettings = localStorage.getItem('gemma_chat_settings');
+      let loadedSettings = DEFAULT_SETTINGS;
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings);
+          loadedSettings = {
+            ...DEFAULT_SETTINGS,
+            ...parsed
+          };
+          setSettings(loadedSettings);
+        } catch (e) {
+          console.error('Failed to parse settings', e);
+        }
+      }
+
+      // Load Projects
+      const savedProjects = localStorage.getItem('gemma_projects');
+      if (savedProjects) {
+        try {
+          setProjects(JSON.parse(savedProjects));
+        } catch (e) {
+          console.error('Failed to parse projects', e);
+        }
+      }
+
+      // Load Sessions
+      const savedSessions = localStorage.getItem('gemma_chat_sessions');
+      const savedActiveId = localStorage.getItem('gemma_chat_active_id');
+      const savedMessages = localStorage.getItem('gemma_chat_messages_map');
+
+      let parsedSessions: ChatSession[] = [];
+      let parsedActiveId = '';
+      let parsedMessages: Record<string, Message[]> = {};
+
+      if (savedSessions) {
+        try {
+          const parsed = JSON.parse(savedSessions);
+          parsedSessions = parsed.map((s: Partial<ChatSession>) => ({
+            id: s.id,
+            title: s.title || 'New Chat',
+            pinned: s.pinned || false,
+            persona: s.persona || loadedSettings.persona || 'general',
+            customSystemPrompt: s.customSystemPrompt || loadedSettings.customSystemPrompt || '',
+            gptId: s.gptId,
+            gptName: s.gptName,
+            gptAvatarEmoji: s.gptAvatarEmoji,
+            gptAvatarBg: s.gptAvatarBg,
+            gptDescription: s.gptDescription,
+            gptStarterPrompts: s.gptStarterPrompts,
+            activeStyle: s.activeStyle || 'normal',
+            activeSkill: s.activeSkill || 'default',
+            thinkingEnabled: s.thinkingEnabled ?? false,
+            webSearchEnabled: s.webSearchEnabled ?? false,
+            projectId: s.projectId
+          }));
+        } catch (e) {
+          console.error('Failed to parse sessions', e);
+        }
+      }
+
+      // Load Custom GPTs
+      const savedCustomGpts = localStorage.getItem('gemma_chat_custom_gpts');
+      if (savedCustomGpts) {
+        try {
+          setCustomGpts(JSON.parse(savedCustomGpts));
+        } catch (e) {
+          console.error('Failed to parse custom GPTs', e);
+        }
+      }
+
+      if (savedActiveId) {
+        parsedActiveId = savedActiveId;
+      }
+
+      if (savedMessages) {
+        try {
+          parsedMessages = JSON.parse(savedMessages);
+        } catch (e) {
+          console.error('Failed to parse messages map', e);
+        }
+      }
+
+      // If no sessions, initialize with a default one
+      if (parsedSessions.length === 0) {
+        const defaultSessionId = Date.now().toString();
+        const defaultSession: ChatSession = {
+          id: defaultSessionId,
+          title: 'Welcome Conversation',
+          pinned: false,
+          persona: loadedSettings.persona || 'general',
+          customSystemPrompt: loadedSettings.customSystemPrompt || 'You are a helpful, precise, and knowledgeable AI assistant.',
+          activeStyle: 'normal',
+          activeSkill: 'default',
+          thinkingEnabled: false,
+          webSearchEnabled: false,
         };
-        setSettings(loadedSettings);
-      } catch (e) {
-        console.error('Failed to parse settings', e);
+        parsedSessions = [defaultSession];
+        parsedActiveId = defaultSessionId;
+        parsedMessages = {
+          [defaultSessionId]: [],
+        };
+
+        localStorage.setItem('gemma_chat_sessions', JSON.stringify(parsedSessions));
+        localStorage.setItem('gemma_chat_active_id', defaultSessionId);
+        localStorage.setItem('gemma_chat_messages_map', JSON.stringify(parsedMessages));
       }
-    }
 
-    // Load Projects
-    const savedProjects = localStorage.getItem('gemma_projects');
-    if (savedProjects) {
-      try {
-        setProjects(JSON.parse(savedProjects));
-      } catch (e) {
-        console.error('Failed to parse projects', e);
+      setSessions(parsedSessions);
+      setActiveSessionId(parsedActiveId);
+      setMessagesMap(parsedMessages);
+
+      // Responsive: collapse sidebar on small screens initially
+      if (window.innerWidth < 768) {
+        setIsSidebarOpen(false);
       }
-    }
+    }, 0);
 
-    // Load Sessions
-    const savedSessions = localStorage.getItem('gemma_chat_sessions');
-    const savedActiveId = localStorage.getItem('gemma_chat_active_id');
-    const savedMessages = localStorage.getItem('gemma_chat_messages_map');
-
-    let parsedSessions: ChatSession[] = [];
-    let parsedActiveId = '';
-    let parsedMessages: Record<string, Message[]> = {};
-
-    if (savedSessions) {
-      try {
-        const parsed = JSON.parse(savedSessions);
-        parsedSessions = parsed.map((s: any) => ({
-          id: s.id,
-          title: s.title || 'New Chat',
-          pinned: s.pinned || false,
-          persona: s.persona || loadedSettings.persona || 'general',
-          customSystemPrompt: s.customSystemPrompt || loadedSettings.customSystemPrompt || '',
-          gptId: s.gptId,
-          gptName: s.gptName,
-          gptAvatarEmoji: s.gptAvatarEmoji,
-          gptAvatarBg: s.gptAvatarBg,
-          gptDescription: s.gptDescription,
-          gptStarterPrompts: s.gptStarterPrompts,
-          activeStyle: s.activeStyle || 'normal',
-          activeSkill: s.activeSkill || 'default',
-          thinkingEnabled: s.thinkingEnabled ?? false,
-          webSearchEnabled: s.webSearchEnabled ?? false,
-          projectId: s.projectId
-        }));
-      } catch (e) {
-        console.error('Failed to parse sessions', e);
-      }
-    }
-
-    // Load Custom GPTs
-    const savedCustomGpts = localStorage.getItem('gemma_chat_custom_gpts');
-    if (savedCustomGpts) {
-      try {
-        setCustomGpts(JSON.parse(savedCustomGpts));
-      } catch (e) {
-        console.error('Failed to parse custom GPTs', e);
-      }
-    }
-
-    if (savedActiveId) {
-      parsedActiveId = savedActiveId;
-    }
-
-    if (savedMessages) {
-      try {
-        parsedMessages = JSON.parse(savedMessages);
-      } catch (e) {
-        console.error('Failed to parse messages map', e);
-      }
-    }
-
-    // If no sessions, initialize with a default one
-    if (parsedSessions.length === 0) {
-      const defaultSessionId = Date.now().toString();
-      const defaultSession: ChatSession = {
-        id: defaultSessionId,
-        title: 'Welcome Conversation',
-        pinned: false,
-        persona: loadedSettings.persona || 'general',
-        customSystemPrompt: loadedSettings.customSystemPrompt || 'You are a helpful, precise, and knowledgeable AI assistant.',
-        activeStyle: 'normal',
-        activeSkill: 'default',
-        thinkingEnabled: false,
-        webSearchEnabled: false,
-      };
-      parsedSessions = [defaultSession];
-      parsedActiveId = defaultSessionId;
-      parsedMessages = {
-        [defaultSessionId]: [],
-      };
-
-      localStorage.setItem('gemma_chat_sessions', JSON.stringify(parsedSessions));
-      localStorage.setItem('gemma_chat_active_id', defaultSessionId);
-      localStorage.setItem('gemma_chat_messages_map', JSON.stringify(parsedMessages));
-    }
-
-    setSessions(parsedSessions);
-    setActiveSessionId(parsedActiveId);
-    setMessagesMap(parsedMessages);
-
-    // Responsive: collapse sidebar on small screens initially
-    if (window.innerWidth < 768) {
-      setIsSidebarOpen(false);
-    }
+    return () => clearTimeout(mountTimer);
   }, []);
 
   // Synchronize thinkingEnabled and webSearchEnabled states when active session changes
   useEffect(() => {
     const activeSession = sessions.find(s => s.id === activeSessionId);
     if (activeSession) {
-      setThinkingEnabled(prev => {
-        const next = activeSession.thinkingEnabled ?? false;
-        return prev === next ? prev : next;
-      });
-      setWebSearchEnabled(prev => {
-        const next = activeSession.webSearchEnabled ?? false;
-        return prev === next ? prev : next;
-      });
+      const nextThinking = activeSession.thinkingEnabled ?? false;
+      const nextWebSearch = activeSession.webSearchEnabled ?? false;
+      const syncTimer = setTimeout(() => {
+        setThinkingEnabled(prev => prev === nextThinking ? prev : nextThinking);
+        setWebSearchEnabled(prev => prev === nextWebSearch ? prev : nextWebSearch);
+      }, 0);
+      return () => clearTimeout(syncTimer);
     }
   }, [activeSessionId, sessions]);
 
@@ -498,11 +500,11 @@ export default function Home() {
             const parsedMem = JSON.parse(savedMemories);
             if (parsedMem.length > 0) {
               compiledSystemPrompt += `\n\n[USER CONTEXT & MEMORY BANK (Remember these key facts about the user):]\n`;
-              parsedMem.forEach((m: any) => {
+              parsedMem.forEach((m: { key: string; value: string }) => {
                 compiledSystemPrompt += `- ${m.key}: ${m.value}\n`;
               });
             }
-          } catch(e){}
+          } catch {}
         }
       }
       if (activeSession?.activeStyle && STYLE_PROMPTS[activeSession.activeStyle]) {
@@ -577,10 +579,10 @@ export default function Home() {
 
       setVoiceIsFinished(true);
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error during chat stream:', error);
-      
-      const errorMsg = `[ERROR] An error occurred: ${error.message || 'Check your API Key settings.'}`;
+      const err = error as Error;
+      const errorMsg = `[ERROR] An error occurred: ${err.message || 'Check your API Key settings.'}`;
       setVoiceActiveResponse(errorMsg);
       setVoiceIsFinished(true);
 
@@ -649,6 +651,91 @@ export default function Home() {
     }
   };
 
+  const checkForAutomaticMemory = async (content: string) => {
+    try {
+      const lower = content.toLowerCase();
+      const triggers = [
+        'remember', 'prefer', 'favorite', 'always use', 'startup is called', 
+        'my name is', 'i live in', 'i work as', 'i am a', 'my tech stack',
+        'preferred language', 'use postgresql', 'use supabase', 'use next.js'
+      ];
+      const matches = triggers.some(t => lower.includes(t));
+      if (!matches) return;
+
+      const memoryPrompt = `Analyze the user's statement for any key personal facts, technical preferences, or business details that should be remembered for future conversations.
+If you find a fact (e.g. preferred programming language is TypeScript, startup name is NovaAI, database is PostgreSQL), extract it into a key-value format.
+Return ONLY a valid JSON object in this format: {"key": "Short Category", "value": "Detailed fact about the user"}.
+If no important preference or fact is found, return the word "null".
+Do not include any markdown formatting, code block backticks, or extra text.
+
+User Statement: "${content}"`;
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'user',
+              content: memoryPrompt
+            }
+          ],
+          model: 'gemini-2.5-flash',
+          apiKey: settings.apiKey,
+          temperature: 0.1,
+        }),
+      });
+
+      if (response.ok && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let resultText = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          resultText += decoder.decode(value, { stream: true });
+        }
+        
+        let cleanResult = resultText.trim();
+        cleanResult = cleanResult.replace(/^```json|```$/g, '').trim();
+        
+        if (cleanResult && cleanResult !== 'null' && !cleanResult.includes('[ERROR]')) {
+          const parsed = JSON.parse(cleanResult);
+          if (parsed.key && parsed.value) {
+            const savedMemories = localStorage.getItem('gemma_memories');
+            let currentMemories: { id: string; key: string; value: string }[] = [];
+            if (savedMemories) {
+              try { currentMemories = JSON.parse(savedMemories); } catch {}
+            }
+            
+            const existsIdx = currentMemories.findIndex(
+              (m) => m.key.toLowerCase() === parsed.key.toLowerCase()
+            );
+            const newMem = {
+              id: Date.now().toString(),
+              key: parsed.key,
+              value: parsed.value
+            };
+            
+            let updated;
+            if (existsIdx > -1) {
+              updated = [...currentMemories];
+              updated[existsIdx] = newMem;
+            } else {
+              updated = [...currentMemories, newMem];
+            }
+            
+            localStorage.setItem('gemma_memories', JSON.stringify(updated));
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Failed automatic memory detection:", err);
+    }
+  };
+
   // Send Message
   const handleSendMessage = async (content: string, attachments: Attachment[]) => {
     if (!activeSessionId) return;
@@ -705,6 +792,9 @@ export default function Home() {
     }
 
     await triggerStreaming(updatedMessages);
+    
+    // Background automatic memory check
+    checkForAutomaticMemory(content);
   };
 
   // Edit Message
@@ -933,6 +1023,10 @@ export default function Home() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={handleSaveSettings}
+        sessionsCount={sessions.length}
+        projectsCount={projects.length}
+        assistantsCount={customGpts.length}
+        messagesCount={Object.values(messagesMap).reduce((acc, curr) => acc + (curr ? curr.length : 0), 0)}
       />
 
       {/* ChatGPT-Style Voice Mode Overlay */}

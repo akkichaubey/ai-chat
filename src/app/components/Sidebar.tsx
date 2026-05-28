@@ -11,6 +11,7 @@ import {
   Search,
   Pin,
   Sparkles,
+  Brain,
   Code,
   Compass,
   PanelLeftClose,
@@ -18,6 +19,7 @@ import {
   MoreHorizontal,
   Folder,
   FolderOpen,
+  FolderPlus,
   ChevronRight,
   ChevronDown,
   Plus,
@@ -88,7 +90,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [tempTitle, setTempTitle] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const searchQuery = '';
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [isMoveToProjectOpen, setIsMoveToProjectOpen] = useState(false);
@@ -363,9 +365,11 @@ export default function Sidebar({
       {/* Sidebar Container */}
       <aside
         className={`fixed md:relative inset-y-0 left-0 z-40 flex flex-col h-full bg-[#171717] border-r border-neutral-800/40 transition-all duration-300 ease-in-out ${
-          isOpen ? 'w-[260px] translate-x-0' : 'w-0 -translate-x-full md:-translate-x-full md:w-0 border-r-0 overflow-hidden'
+          isOpen ? 'w-[260px] translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 md:w-[68px] overflow-visible'
         }`}
       >
+        {isOpen ? (
+          <>
         {/* Top Header Row (ChatGPT Style: Close button & New Chat button) */}
         <div className="flex items-center justify-between p-3.5 h-[60px] shrink-0 text-slate-200">
           <button
@@ -399,41 +403,59 @@ export default function Sidebar({
         </div>
 
         {/* Explore GPTs & Prompt Library trigger row */}
-        <div className="px-3.5 mb-2 shrink-0 grid grid-cols-2 gap-2 select-none">
+        <div className="px-3.5 mb-3.5 shrink-0 grid grid-cols-2 gap-2 select-none">
           <button
             onClick={onOpenExploreGpts}
-            className="flex items-center justify-center gap-1.5 w-full py-2 px-1.5 rounded-lg text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121]/50 border border-transparent transition-all text-xs font-semibold cursor-pointer"
+            className="group flex flex-col items-center justify-center gap-1.5 w-full py-3 px-2 rounded-xl bg-[#212121]/30 hover:bg-[#2d2f31]/60 border border-neutral-800/40 hover:border-[#a8c7fa]/30 transition-all duration-300 cursor-pointer shadow-sm text-center"
           >
-            <Compass className="w-3.5 h-3.5 text-[#a8c7fa] shrink-0" />
-            Explore GPTs
+            <div className="w-7 h-7 rounded-lg bg-[#a8c7fa]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Compass className="w-4 h-4 text-[#a8c7fa]" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] font-bold text-slate-255 leading-none group-hover:text-white transition-colors">Explore GPTs</span>
+              <span className="text-[8px] text-slate-500 mt-1 font-sans leading-none">Custom Agents</span>
+            </div>
           </button>
           <button
             onClick={onOpenPromptLibrary}
-            className="flex items-center justify-center gap-1.5 w-full py-2 px-1.5 rounded-lg text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121]/50 border border-transparent transition-all text-xs font-semibold cursor-pointer"
+            className="group flex flex-col items-center justify-center gap-1.5 w-full py-3 px-2 rounded-xl bg-[#212121]/30 hover:bg-[#2d2f31]/60 border border-neutral-800/40 hover:border-[#a8c7fa]/30 transition-all duration-300 cursor-pointer shadow-sm text-center"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#a8c7fa] shrink-0" />
-            Prompt Lib
+            <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Sparkles className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] font-bold text-slate-255 leading-none group-hover:text-white transition-colors">Prompt Lib</span>
+              <span className="text-[8px] text-slate-500 mt-1 font-sans leading-none">Templates</span>
+            </div>
           </button>
         </div>
 
         {/* Projects Section */}
-        <div className="px-3.5 mb-2 shrink-0 border-b border-neutral-800/20 pb-2">
-          <div className="flex items-center justify-between text-neutral-400 mb-1 px-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Project Workspaces</span>
+        <div className="px-3.5 mb-3.5 shrink-0 pb-3">
+          <div className="flex items-center justify-between text-neutral-400 mb-2 px-1 pb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5 select-none">
+              <FolderOpen className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
+              Project Workspaces
+            </span>
             {onCreateProject && (
               <button 
                 onClick={onCreateProject}
-                className="p-1 rounded hover:bg-[#212121] hover:text-white transition-colors cursor-pointer"
+                className="p-1 rounded-lg bg-[#212121]/30 hover:bg-[#a8c7fa]/10 text-slate-400 hover:text-[#a8c7fa] border border-neutral-800/40 hover:border-[#a8c7fa]/20 transition-all cursor-pointer"
                 title="Create Project"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
-          <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-thin">
+          <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-thin">
             {projects.length === 0 ? (
-              <div className="text-[11px] text-neutral-600 italic px-2.5 py-1">
-                No projects created yet.
+              <div 
+                onClick={onCreateProject}
+                className="group flex flex-col items-center justify-center p-3.5 rounded-xl border border-dashed border-neutral-800/60 hover:border-[#a8c7fa]/30 bg-[#212121]/10 hover:bg-[#212121]/30 transition-all duration-300 cursor-pointer select-none text-center"
+              >
+                <FolderPlus className="w-5 h-5 text-neutral-600 group-hover:text-slate-400 transition-colors mb-1.5" />
+                <span className="text-[10px] font-bold text-slate-400 group-hover:text-slate-350 transition-colors">Create Workspace</span>
+                <span className="text-[8px] text-slate-600 group-hover:text-slate-500 transition-colors mt-0.5 max-w-[170px]">Organize and custom-instruct your chat sessions</span>
               </div>
             ) : (
               projects.map(project => {
@@ -576,6 +598,96 @@ export default function Sidebar({
             </button>
           )}
         </div>
+        </>
+        ) : (
+          /* ================= COLLAPSED MINI-VIEW ================= */
+          <div className="flex flex-col h-full items-center justify-between py-4 select-none shrink-0 w-[68px] bg-[#171717]">
+            {/* Collapsed top bar items */}
+            <div className="flex flex-col items-center gap-5 w-full">
+              {/* Gemma/Bot logo with expand panel action */}
+              <button
+                onClick={onToggleOpen}
+                className="p-2 rounded-xl text-[#a8c7fa] bg-[#a8c7fa]/10 hover:bg-[#a8c7fa]/20 transition-all cursor-pointer hover:scale-105"
+                title="Expand sidebar"
+              >
+                <Brain className="w-5.5 h-5.5" />
+              </button>
+
+              <div className="w-8 h-px bg-neutral-800/60 my-1" />
+
+              {/* New Chat */}
+              <button
+                onClick={onCreateSession}
+                className="p-2.5 rounded-xl text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+                title="New chat"
+              >
+                <SquarePen className="w-5 h-5" />
+              </button>
+
+              {/* Search */}
+              {onOpenSearch && (
+                <button
+                  onClick={onOpenSearch}
+                  className="p-2.5 rounded-xl text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+                  title="Search chats & contents"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+              )}
+
+              {/* Explore GPTs */}
+              <button
+                onClick={onOpenExploreGpts}
+                className="p-2.5 rounded-xl text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+                title="Explore Custom GPTs"
+              >
+                <Compass className="w-5 h-5 text-[#a8c7fa]" />
+              </button>
+
+              {/* Prompt Library */}
+              {onOpenPromptLibrary && (
+                <button
+                  onClick={onOpenPromptLibrary}
+                  className="p-2.5 rounded-xl text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+                  title="Prompt Library Templates"
+                >
+                  <Sparkles className="w-5 h-5 text-amber-400" />
+                </button>
+              )}
+            </div>
+
+            {/* Collapsed bottom profile bar */}
+            <div className="flex flex-col items-center gap-4 w-full">
+              {/* Settings Trigger Icon */}
+              <button
+                onClick={onOpenSettings}
+                className="p-2.5 rounded-xl text-neutral-500 hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+                title="Settings & Instructions"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+
+              {/* Avatar Circle */}
+              <button
+                onClick={onOpenSettings}
+                className="cursor-pointer transition-transform hover:scale-105"
+                title="User Profile Settings"
+              >
+                {userProfile?.avatar_url ? (
+                  <img 
+                    src={userProfile.avatar_url} 
+                    alt={userProfile.name} 
+                    className="w-8 h-8 rounded-full border border-neutral-700/60 object-cover shrink-0 select-none" 
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#a8c7fa] to-purple-500 flex items-center justify-center text-[10px] font-bold text-[#131314] shadow-md select-none shrink-0 border border-neutral-700/40">
+                    {(userProfile?.name || 'AI').slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </aside>
 
       {/* Move to Project Modal */}

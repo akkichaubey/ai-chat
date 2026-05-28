@@ -310,3 +310,22 @@ body {
 .prism-theme-override .token.variable {
   color: var(--primary);
 }
+
+/* Global premium cursor pointer rules */
+button,
+select,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+input[type="checkbox"],
+input[type="radio"],
+a {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+  cursor: not-allowed !important;
+}
+

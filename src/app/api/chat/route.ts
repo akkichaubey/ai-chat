@@ -1,6 +1,30 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest } from 'next/server';
 
+interface MessageAttachment {
+  type: string;
+  data: string;
+}
+
+interface MessageItem {
+  role: 'user' | 'assistant';
+  content: string;
+  attachments?: MessageAttachment[];
+}
+
+interface ContentPartText {
+  text: string;
+}
+
+interface ContentPartInline {
+  inlineData: {
+    mimeType: string;
+    data: string;
+  };
+}
+
+type ContentPart = ContentPartText | ContentPartInline;
+
 export async function POST(request: NextRequest) {
   try {
     const { 
@@ -29,8 +53,8 @@ export async function POST(request: NextRequest) {
     
     // Format the messages for the Google GenAI SDK (maps 'assistant' -> 'model')
     // Supports inlineData for image and PDF attachments
-    const formattedContents = messages.map((msg: any) => {
-      const parts: any[] = [];
+    const formattedContents = messages.map((msg: MessageItem) => {
+      const parts: ContentPart[] = [];
       
       // Add text content if present (or fallback to empty string if attachments exist)
       if (msg.content || !msg.attachments || msg.attachments.length === 0) {
@@ -39,7 +63,7 @@ export async function POST(request: NextRequest) {
       
       // Add any image or PDF attachments as inlineData
       if (msg.attachments && msg.attachments.length > 0) {
-        msg.attachments.forEach((att: any) => {
+        msg.attachments.forEach((att: MessageAttachment) => {
           if (att.type.startsWith('image/') || att.type === 'application/pdf') {
             parts.push({
               inlineData: {
@@ -58,7 +82,7 @@ export async function POST(request: NextRequest) {
     });
     
     // Build the configuration
-    const config: any = {};
+    const config: Record<string, unknown> = {};
     if (temperature !== undefined) {
       config.temperature = temperature;
     }
@@ -95,7 +119,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Call the streaming API with an exponential backoff retry mechanism to mitigate Gemma 4 transient 500/503 server errors
-    let responseStream: any;
+    let responseStream: Awaited<ReturnType<InstanceType<typeof GoogleGenAI>['models']['generateContentStream']>> | undefined = undefined;
     const attempts = 4;
     let delay = 1000;
     
@@ -104,14 +128,15 @@ export async function POST(request: NextRequest) {
         responseStream = await ai.models.generateContentStream({
           model: activeModel,
           contents: formattedContents,
-          config: config
+          config: config as Parameters<InstanceType<typeof GoogleGenAI>['models']['generateContentStream']>[0]['config']
         });
         break;
-      } catch (error: any) {
-        const errorMsg = String(error.message || '');
+      } catch (error) {
+        const err = error as { status?: number; message?: string };
+        const errorMsg = String(err.message || '');
         const isTransientError =
-          error.status === 500 ||
-          error.status === 503 ||
+          err.status === 500 ||
+          err.status === 503 ||
           errorMsg.includes('500') ||
           errorMsg.includes('503') ||
           errorMsg.toLowerCase().includes('internal') ||
@@ -132,6 +157,9 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          if (!responseStream) {
+            throw new Error('Response stream not initialized');
+          }
           for await (const chunk of responseStream) {
             const text = chunk.text;
             if (text) {
@@ -139,7 +167,7 @@ export async function POST(request: NextRequest) {
             }
           }
           controller.close();
-        } catch (error: any) {
+        } catch (error) {
           controller.error(error);
         }
       }
@@ -152,10 +180,11 @@ export async function POST(request: NextRequest) {
         'Connection': 'keep-alive',
       }
     });
-  } catch (error: any) {
-    console.error('Error in API Chat route:', error);
+  } catch (error) {
+    const err = error as Error;
+    console.error('Error in API Chat route:', err);
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal Server Error' }),
+      JSON.stringify({ error: err.message || 'Internal Server Error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }

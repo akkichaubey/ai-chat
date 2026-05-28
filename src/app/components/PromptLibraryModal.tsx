@@ -77,14 +77,17 @@ export default function PromptLibraryModal({
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedCustom = localStorage.getItem('gemma_custom_prompts');
-      if (savedCustom) {
-        try { setCustomPrompts(JSON.parse(savedCustom)); } catch(e) {}
-      }
-      const savedFavorites = localStorage.getItem('gemma_favorite_prompts');
-      if (savedFavorites) {
-        try { setFavoriteIds(JSON.parse(savedFavorites)); } catch(e) {}
-      }
+      const timer = setTimeout(() => {
+        const savedCustom = localStorage.getItem('gemma_custom_prompts');
+        if (savedCustom) {
+          try { setCustomPrompts(JSON.parse(savedCustom)); } catch {}
+        }
+        const savedFavorites = localStorage.getItem('gemma_favorite_prompts');
+        if (savedFavorites) {
+          try { setFavoriteIds(JSON.parse(savedFavorites)); } catch {}
+        }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -115,7 +118,7 @@ export default function PromptLibraryModal({
       id: 'c_' + Date.now().toString(),
       title: newTitle.trim(),
       content: newContent.trim(),
-      category: newCategory === 'general' ? 'general' as any : newCategory,
+      category: newCategory === 'general' ? 'general' as 'general' | 'developer' | 'writing' | 'marketing' | 'favorites' : newCategory,
       isCustom: true
     };
 
@@ -212,7 +215,7 @@ export default function PromptLibraryModal({
               />
               <select
                 value={newCategory}
-                onChange={(e: any) => setNewCategory(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewCategory(e.target.value as 'developer' | 'writing' | 'marketing' | 'general')}
                 className="w-full bg-[#1e1f20] border border-[#303134] rounded-xl py-2 px-3 text-xs text-slate-400 focus:outline-none focus:border-[#a8c7fa]"
               >
                 <option value="general">General Category</option>
@@ -262,7 +265,7 @@ export default function PromptLibraryModal({
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as 'all' | 'developer' | 'writing' | 'marketing' | 'custom' | 'favorites')}
                 className={`py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer whitespace-nowrap ${
                   active 
                     ? 'bg-[#2d2f31] border-[#a8c7fa]/40 text-[#a8c7fa]' 

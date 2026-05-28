@@ -37,8 +37,8 @@ export default function LoginPage() {
         setSuccessMsg('Verification link sent! Please check your email inbox.');
         setEmail('');
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      setErrorMsg((err as Error).message || 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }
@@ -51,8 +51,8 @@ export default function LoginPage() {
       if (error) {
         setErrorMsg(error.message || `Failed to sign in with ${provider}.`);
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      setErrorMsg((err as Error).message || 'An unexpected error occurred.');
     }
   };
 

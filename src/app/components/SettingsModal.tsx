@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Key, Info, User, Palette, Brain, CreditCard, Save, Plus, Trash2, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { X, Key, Info, User, Brain, CreditCard, Save, Plus, Trash2, CheckCircle2, ChevronDown } from 'lucide-react';
 
 interface Settings {
   apiKey: string;
@@ -23,6 +23,10 @@ interface SettingsModalProps {
   onClose: () => void;
   settings: Settings;
   onSaveSettings: (settings: Settings) => void;
+  sessionsCount?: number;
+  projectsCount?: number;
+  assistantsCount?: number;
+  messagesCount?: number;
 }
 
 const PERSONAS = [
@@ -42,7 +46,11 @@ export default function SettingsModal({
   isOpen,
   onClose,
   settings,
-  onSaveSettings
+  onSaveSettings,
+  sessionsCount = 0,
+  projectsCount = 0,
+  assistantsCount = 0,
+  messagesCount = 0
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<'general' | 'memory' | 'billing'>('general');
 
@@ -65,31 +73,34 @@ export default function SettingsModal({
   // Sync internal states
   useEffect(() => {
     if (isOpen) {
-      setApiKey(settings.apiKey);
-      setTemperature(settings.temperature);
-      setPersona(settings.persona || 'general');
-      setCustomSystemPrompt(settings.customSystemPrompt || '');
-      setTheme(settings.theme || 'default');
+      const syncTimer = setTimeout(() => {
+        setApiKey(settings.apiKey);
+        setTemperature(settings.temperature);
+        setPersona(settings.persona || 'general');
+        setCustomSystemPrompt(settings.customSystemPrompt || '');
+        setTheme(settings.theme || 'default');
 
-      // Load Memories
-      const savedMemories = localStorage.getItem('gemma_memories');
-      if (savedMemories) {
-        try { setMemories(JSON.parse(savedMemories)); } catch(e){}
-      } else {
-        // Initialize with default mock memories for beautiful demonstration
-        const defaults: Memory[] = [
-          { id: 'm1', key: 'Programming Language', value: 'User prefers TypeScript and modern Next.js structures.' },
-          { id: 'm2', key: 'Tone Preference', value: 'User prefers precise explanations without unnecessary conversation.' }
-        ];
-        setMemories(defaults);
-        localStorage.setItem('gemma_memories', JSON.stringify(defaults));
-      }
+        // Load Memories
+        const savedMemories = localStorage.getItem('gemma_memories');
+        if (savedMemories) {
+          try { setMemories(JSON.parse(savedMemories)); } catch {}
+        } else {
+          // Initialize with default mock memories for beautiful demonstration
+          const defaults: Memory[] = [
+            { id: 'm1', key: 'Programming Language', value: 'User prefers TypeScript and modern Next.js structures.' },
+            { id: 'm2', key: 'Tone Preference', value: 'User prefers precise explanations without unnecessary conversation.' }
+          ];
+          setMemories(defaults);
+          localStorage.setItem('gemma_memories', JSON.stringify(defaults));
+        }
 
-      // Load Subscription
-      const savedPlan = localStorage.getItem('gemma_subscription_plan');
-      if (savedPlan) {
-        setUserPlan(savedPlan as any);
-      }
+        // Load Subscription
+        const savedPlan = localStorage.getItem('gemma_subscription_plan');
+        if (savedPlan) {
+          setUserPlan(savedPlan as 'free' | 'pro' | 'pro_plus');
+        }
+      }, 0);
+      return () => clearTimeout(syncTimer);
     }
   }, [isOpen, settings]);
 
@@ -138,12 +149,6 @@ export default function SettingsModal({
       setUpgradeProcessing(null);
       alert(`Payment Successful! Your workspace has been upgraded to ${plan.replace('_', ' ').toUpperCase()} successfully.`);
     }, 1500);
-  };
-
-  const handleCancelSubscription = () => {
-    setUserPlan('free');
-    localStorage.setItem('gemma_subscription_plan', 'free');
-    alert('Subscription downgraded back to Free plan.');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -197,15 +202,14 @@ export default function SettingsModal({
           {[
             { id: 'general', label: 'General', Icon: User },
             { id: 'memory', label: 'AI Memory Dashboard', Icon: Brain },
-            // Future SaaS Subscription Tab:
-            // { id: 'billing', label: 'Subscriptions', Icon: CreditCard }
+            { id: 'billing', label: 'Usage & Subscriptions', Icon: CreditCard }
           ].map(tab => {
             const Icon = tab.Icon;
             const active = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as 'general' | 'memory' | 'billing')}
                 className={`py-3 px-4 font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
                   active 
                     ? 'border-[#a8c7fa] text-[#a8c7fa]' 
@@ -253,17 +257,20 @@ export default function SettingsModal({
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1">
                   AI Persona
                 </label>
-                <select
-                  value={persona}
-                  onChange={(e) => handlePersonaChange(e.target.value)}
-                  className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-2.5 px-3 text-xs text-slate-200 focus:outline-none cursor-pointer"
-                >
-                  {PERSONAS.map((p) => (
-                    <option key={p.id} value={p.id} className="bg-[#1e1f20] text-slate-200 text-xs">
-                      {p.name} - {p.description}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={persona}
+                    onChange={(e) => handlePersonaChange(e.target.value)}
+                    className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-2.5 pl-4 pr-10 text-xs text-slate-200 focus:outline-none cursor-pointer appearance-none"
+                  >
+                    {PERSONAS.map((p) => (
+                      <option key={p.id} value={p.id} className="bg-[#1e1f20] text-slate-200 text-xs">
+                        {p.name} - {p.description}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
               </div>
 
               {/* Theme Customization */}
@@ -271,17 +278,20 @@ export default function SettingsModal({
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1">
                   Global Color Theme
                 </label>
-                <select
-                  value={theme}
-                  onChange={(e) => setTheme(e.target.value)}
-                  className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-2.5 px-3 text-xs text-slate-200 focus:outline-none cursor-pointer"
-                >
-                  <option value="default" className="bg-[#1e1f20]">Google AI Studio (Default)</option>
-                  <option value="claude" className="bg-[#1e1f20]">Claude Charcoal</option>
-                  <option value="midnight" className="bg-[#1e1f20]">Midnight Cosmic Purple</option>
-                  <option value="cyberpunk" className="bg-[#1e1f20]">Cyberpunk Neon</option>
-                  <option value="forest" className="bg-[#1e1f20]">Forest Green</option>
-                </select>
+                <div className="relative">
+                  <select
+                    value={theme}
+                    onChange={(e) => setTheme(e.target.value)}
+                    className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-2.5 pl-4 pr-10 text-xs text-slate-200 focus:outline-none cursor-pointer appearance-none"
+                  >
+                    <option value="default" className="bg-[#1e1f20]">Google AI Studio (Default)</option>
+                    <option value="claude" className="bg-[#1e1f20]">Claude Charcoal</option>
+                    <option value="midnight" className="bg-[#1e1f20]">Midnight Cosmic Purple</option>
+                    <option value="cyberpunk" className="bg-[#1e1f20]">Cyberpunk Neon</option>
+                    <option value="forest" className="bg-[#1e1f20]">Forest Green</option>
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
               </div>
 
               {/* Custom System Prompt / Instructions */}
@@ -423,24 +433,79 @@ export default function SettingsModal({
                 <div>
                   <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">Current Subscription</span>
                   <span className="text-lg font-bold text-slate-200 capitalize mt-0.5 block">
-                    {userPlan.replace('_', ' ')} Plan
+                    Unlimited Active Plan
                   </span>
                   <span className="text-[10px] text-slate-500 block mt-1">
-                    {userPlan === 'free' ? 'Simulated usage limited to 50 prompts / day.' : 'Unlimited messages & custom workspace builders unlocked.'}
+                    Free simulated access with zero limits. All features unlocked.
                   </span>
                 </div>
-                {userPlan !== 'free' ? (
-                  <button
-                    onClick={handleCancelSubscription}
-                    className="py-2 px-4 rounded-xl border border-rose-950 text-rose-450 hover:bg-rose-950/20 text-xs font-semibold transition-all"
-                  >
-                    Downgrade
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-1 bg-[#ffc107]/10 border border-[#ffc107]/20 rounded-full px-2.5 py-0.5 text-[#ffc107] text-[10px] font-bold">
-                    <ShieldAlert className="w-3.5 h-3.5" /> Limited License
+                <div className="flex items-center gap-1 bg-emerald-950/40 border border-emerald-850/45 rounded-full px-3 py-1 text-emerald-450 text-[10px] font-extrabold uppercase tracking-wide">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-450" /> Fully Unlocked
+                </div>
+              </div>
+
+              {/* Workspace Resource Usage Dashboard */}
+              <div className="p-4 bg-[#131314] border border-[#303134] rounded-2xl space-y-4">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block pl-1">
+                  Workspace Resource Usage
+                </span>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Messages Used */}
+                  <div className="p-3 bg-[#1e1f20] border border-[#303134] rounded-xl space-y-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-slate-400">Messages Used</span>
+                      <span className="font-mono text-[#a8c7fa] font-bold">{messagesCount} / ∞</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-[#2d2f31] rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-blue-500 to-[#a8c7fa] rounded-full" style={{ width: '15%' }}></div>
+                    </div>
                   </div>
-                )}
+
+                  {/* Chats Created */}
+                  <div className="p-3 bg-[#1e1f20] border border-[#303134] rounded-xl space-y-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-slate-400">Chats Created</span>
+                      <span className="font-mono text-[#a8c7fa] font-bold">{sessionsCount} / ∞</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-[#2d2f31] rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-blue-500 to-[#a8c7fa] rounded-full" style={{ width: '25%' }}></div>
+                    </div>
+                  </div>
+
+                  {/* Projects Created */}
+                  <div className="p-3 bg-[#1e1f20] border border-[#303134] rounded-xl space-y-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-slate-400">Projects Created</span>
+                      <span className="font-mono text-[#a8c7fa] font-bold">{projectsCount} / ∞</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-[#2d2f31] rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-blue-500 to-[#a8c7fa] rounded-full" style={{ width: '20%' }}></div>
+                    </div>
+                  </div>
+
+                  {/* Memory Entries */}
+                  <div className="p-3 bg-[#1e1f20] border border-[#303134] rounded-xl space-y-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-slate-400">Memory Count</span>
+                      <span className="font-mono text-[#a8c7fa] font-bold">{memories.length} / ∞</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-[#2d2f31] rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-blue-500 to-[#a8c7fa] rounded-full" style={{ width: '10%' }}></div>
+                    </div>
+                  </div>
+
+                  {/* Custom Assistants */}
+                  <div className="p-3 bg-[#1e1f20] border border-[#303134] rounded-xl space-y-2 col-span-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-slate-400">Custom Assistants</span>
+                      <span className="font-mono text-[#a8c7fa] font-bold">{assistantsCount} / ∞</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-[#2d2f31] rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-blue-500 to-[#a8c7fa] rounded-full" style={{ width: '30%' }}></div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Plan Pricing Tier Cards */}

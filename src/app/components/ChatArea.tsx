@@ -10,7 +10,6 @@ import {
   Bot, 
   User, 
   Sparkles, 
-  TrendingUp, 
   HelpCircle, 
   Settings,
   ArrowDown,
@@ -41,6 +40,34 @@ import {
   FileDown,
   Printer
 } from 'lucide-react';
+
+interface SpeechRecognitionEvent {
+  results: {
+    [index: number]: {
+      [index: number]: {
+        transcript: string;
+      };
+      length: number;
+    };
+    length: number;
+  };
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+}
+
+interface SpeechRecognitionInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+}
 
 interface Attachment {
   name: string;
@@ -131,95 +158,6 @@ const STARTER_PROMPTS = [
   }
 ];
 
-// Helper to compile Sandbox iframe code
-const getSandboxSrcDoc = (code: string, language: string) => {
-  if (language === 'html') {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body {
-            font-family: system-ui, sans-serif;
-            color: #e3e3e3;
-            background: #131314;
-            margin: 0;
-            padding: 12px;
-          }
-        </style>
-      </head>
-      <body>
-        ${code}
-      </body>
-      </html>
-    `;
-  }
-  
-  const escapedCode = code.replace(/<\/script>/g, '<\\/script>');
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body {
-          font-family: monospace;
-          font-size: 12px;
-          color: #e3e3e3;
-          background: #131314;
-          margin: 0;
-          padding: 12px;
-          white-space: pre-wrap;
-          line-height: 1.5;
-        }
-        .log { margin-bottom: 6px; border-bottom: 1px solid #202124; padding-bottom: 4px; }
-        .error { color: #f28b82; font-weight: bold; }
-        .warn { color: #fdd835; }
-        .info { color: #a8c7fa; }
-        .system { color: #8e918f; font-style: italic; }
-      </style>
-    </head>
-    <body>
-      <div id="output"></div>
-      <script>
-        const outputDiv = document.getElementById('output');
-        function appendLog(args, type = 'log') {
-          const line = document.createElement('div');
-          line.className = 'log ' + type;
-          line.textContent = args.map(arg => {
-            if (arg === null) return 'null';
-            if (arg === undefined) return 'undefined';
-            if (typeof arg === 'object') {
-              try { return JSON.stringify(arg, null, 2); } catch(e) {}
-            }
-            return String(arg);
-          }).join(' ');
-          outputDiv.appendChild(line);
-          window.scrollTo(0, document.body.scrollHeight);
-        }
-        
-        console.log = (...args) => appendLog(args, 'log');
-        console.error = (...args) => appendLog(args, 'error');
-        console.warn = (...args) => appendLog(args, 'warn');
-        console.info = (...args) => appendLog(args, 'info');
-
-        window.onerror = function(message, source, lineno, colno, error) {
-          appendLog([message + ' (line ' + lineno + ')'], 'error');
-          return true;
-        };
-        
-        appendLog(['Sandbox initialized. Running script...'], 'system');
-      </script>
-      <script>
-        try {
-          ${escapedCode}
-        } catch (err) {
-          console.error(err);
-        }
-      </script>
-    </body>
-    </html>
-  `;
-};
 
 const parseMultiFileCode = (code: string): Record<string, string> | null => {
   const fileMarkerRegex = /(?:---\s*\n\s*File:\s*([^\n\r]+?)\s*\n\s*---|---\s*File:\s*([^\n\r-]+?)\s*---)/g;
@@ -305,10 +243,13 @@ export default function ChatArea({
   // Inject prompt library template when selected
   useEffect(() => {
     if (injectedPrompt) {
-      setInput(prev => prev ? prev + '\n' + injectedPrompt : injectedPrompt);
-      if (clearInjectedPrompt) {
-        clearInjectedPrompt();
-      }
+      const timer = setTimeout(() => {
+        setInput(prev => prev ? prev + '\n' + injectedPrompt : injectedPrompt);
+        if (clearInjectedPrompt) {
+          clearInjectedPrompt();
+        }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [injectedPrompt, clearInjectedPrompt]);
 
@@ -334,7 +275,7 @@ export default function ChatArea({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const adjustTextareaHeight = () => {
@@ -345,10 +286,24 @@ export default function ChatArea({
     textarea.style.height = `${newHeight}px`;
   };
 
+  const refocusInput = () => {
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 50);
+  };
+
   // Adjust height automatically when input changes
   useEffect(() => {
     adjustTextareaHeight();
   }, [input]);
+
+  // Auto-focus textarea on mount or when chat session changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [activeSessionTitle]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -360,7 +315,7 @@ export default function ChatArea({
 
   // Speech Recognition Hook initialization
   useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition = ((window as unknown) as Record<string, new () => SpeechRecognitionInstance>).SpeechRecognition || ((window as unknown) as Record<string, new () => SpeechRecognitionInstance>).webkitSpeechRecognition;
     if (SpeechRecognition) {
       const rec = new SpeechRecognition();
       rec.continuous = true;
@@ -371,12 +326,12 @@ export default function ChatArea({
         setIsListening(true);
       };
       
-      rec.onresult = (event: any) => {
+      rec.onresult = (event: SpeechRecognitionEvent) => {
         const transcript = event.results[event.results.length - 1][0].transcript;
         setInput(prev => prev + (prev ? ' ' : '') + transcript);
       };
       
-      rec.onerror = (event: any) => {
+      rec.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error', event.error);
         setIsListening(false);
       };
@@ -467,6 +422,11 @@ export default function ChatArea({
     if (isListening) {
       recognitionRef.current?.stop();
     }
+    
+    // Refocus textarea so typing cursor remains active
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 50);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -606,7 +566,7 @@ export default function ChatArea({
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     
-    let html = `
+    const html = `
       <html>
       <head>
         <title>Chat Session: ${activeSessionTitle}</title>
@@ -652,94 +612,96 @@ export default function ChatArea({
   };
 
   // Custom markdown code renderer
-  const markdownComponents = {
-    code({ className, children, ...props }: any) {
-      const match = /language-(\w+)/.exec(className || '');
-      const isCodeBlock = match || String(children).includes('\n');
-      const [copied, setCopied] = useState(false);
-      
-      const copyToClipboard = () => {
-        navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      };
+  const CodeBlockRenderer = ({ className, children, ...props }: { className?: string; children?: React.ReactNode }) => {
+    const match = /language-(\w+)/.exec(className || '');
+    const isCodeBlock = match || String(children).includes('\n');
+    const [copied, setCopied] = useState(false);
+    
+    const copyToClipboard = () => {
+      navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
 
-      const language = match ? match[1].toLowerCase() : '';
-      const codeStr = String(children);
-      const parsedFiles = parseMultiFileCode(codeStr);
-      const isRunnable = ['javascript', 'js', 'html', 'css', 'typescript', 'ts', 'jsx', 'tsx'].includes(language) || parsedFiles !== null;
+    const language = match ? match[1].toLowerCase() : '';
+    const codeStr = String(children);
+    const parsedFiles = parseMultiFileCode(codeStr);
+    const isRunnable = ['javascript', 'js', 'html', 'css', 'typescript', 'ts', 'jsx', 'tsx'].includes(language) || parsedFiles !== null;
 
-      const handleRunCode = () => {
-        if (parsedFiles) {
-          setSandboxFiles(parsedFiles);
+    const handleRunCode = () => {
+      if (parsedFiles) {
+        setSandboxFiles(parsedFiles);
+      } else {
+        // Fallback for single file code blocks
+        if (language === 'html') {
+          setSandboxFiles({
+            '/index.html': codeStr
+          });
+        } else if (language === 'css') {
+          setSandboxFiles({
+            '/styles.css': codeStr,
+            '/index.html': `<link rel="stylesheet" href="./styles.css">\n<div class="p-4">CSS Preview</div>`
+          });
+        } else if (language === 'tsx' || language === 'jsx') {
+          setSandboxFiles({
+            '/App.tsx': codeStr
+          });
         } else {
-          // Fallback for single file code blocks
-          if (language === 'html') {
-            setSandboxFiles({
-              '/index.html': codeStr
-            });
-          } else if (language === 'css') {
-            setSandboxFiles({
-              '/styles.css': codeStr,
-              '/index.html': `<link rel="stylesheet" href="./styles.css">\n<div class="p-4">CSS Preview</div>`
-            });
-          } else if (language === 'tsx' || language === 'jsx') {
-            setSandboxFiles({
-              '/App.tsx': codeStr
-            });
-          } else {
-            // JS/TS or fallback
-            setSandboxFiles({
-              '/index.js': codeStr
-            });
-          }
+          // JS/TS or fallback
+          setSandboxFiles({
+            '/index.js': codeStr
+          });
         }
-        setIsSandboxOpen(true);
-      };
+      }
+      setIsSandboxOpen(true);
+    };
 
-      return isCodeBlock ? (
-        <div className="my-4 overflow-hidden rounded-xl border border-slate-800 bg-[#0b0f19] shadow-lg shadow-black/35">
-          <div className="flex items-center justify-between px-4 py-2 bg-slate-900/90 border-b border-slate-800/80 text-[10px] font-mono text-slate-400">
-            <span className="uppercase tracking-wider font-semibold">{parsedFiles ? 'multi-file component' : (match ? match[1] : 'code')}</span>
-            <div className="flex items-center gap-2">
-              {isRunnable && (
-                <button
-                  onClick={handleRunCode}
-                  className="px-2 py-0.5 rounded transition-all font-medium flex items-center gap-1 hover:text-slate-200 hover:bg-slate-800/60"
-                >
-                  <Play className="w-2.5 h-2.5" />
-                  Run Code
-                </button>
-              )}
+    return isCodeBlock ? (
+      <div className="my-4 overflow-hidden rounded-xl border border-slate-800 bg-[#0b0f19] shadow-lg shadow-black/35">
+        <div className="flex items-center justify-between px-4 py-2 bg-slate-900/90 border-b border-slate-800/80 text-[10px] font-mono text-slate-400">
+          <span className="uppercase tracking-wider font-semibold">{parsedFiles ? 'multi-file component' : (match ? match[1] : 'code')}</span>
+          <div className="flex items-center gap-2">
+            {isRunnable && (
               <button
-                onClick={copyToClipboard}
-                className={`px-2 py-0.5 rounded transition-all font-medium ${
-                  copied 
-                    ? 'text-emerald-400 bg-emerald-950/20 border border-emerald-900/30' 
-                    : 'hover:text-slate-200 hover:bg-slate-800/60'
-                }`}
+                onClick={handleRunCode}
+                className="px-2 py-0.5 rounded transition-all font-medium flex items-center gap-1 hover:text-slate-200 hover:bg-slate-800/60"
               >
-                {copied ? 'Copied!' : 'Copy'}
+                <Play className="w-2.5 h-2.5" />
+                Run Code
               </button>
-            </div>
-          </div>
-          
-          <div className="p-4 overflow-x-auto font-mono text-[11px] leading-relaxed text-slate-300 scrollbar-thin">
-            <SyntaxHighlighter
-              language={language || 'text'}
-              useInlineStyles={false}
-              className="prism-theme-override bg-transparent! p-0!"
+            )}
+            <button
+              onClick={copyToClipboard}
+              className={`px-2 py-0.5 rounded transition-all font-medium ${
+                copied 
+                  ? 'text-emerald-400 bg-emerald-950/20 border border-emerald-900/30' 
+                  : 'hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
             >
-              {codeStr.replace(/\n$/, '')}
-            </SyntaxHighlighter>
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
           </div>
         </div>
-      ) : (
-        <code className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700/30 text-indigo-300 font-mono text-[11px]" {...props}>
-          {children}
-        </code>
-      );
-    }
+        
+        <div className="p-4 overflow-x-auto font-mono text-[11px] leading-relaxed text-slate-300 scrollbar-thin">
+          <SyntaxHighlighter
+            language={language || 'text'}
+            useInlineStyles={false}
+            className="prism-theme-override bg-transparent! p-0!"
+          >
+            {codeStr.replace(/\n$/, '')}
+          </SyntaxHighlighter>
+        </div>
+      </div>
+    ) : (
+      <code className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700/30 text-indigo-300 font-mono text-[11px]" {...props}>
+        {children}
+      </code>
+    );
+  };
+
+  const markdownComponents = {
+    code: CodeBlockRenderer
   };
 
   return (
@@ -1175,6 +1137,7 @@ export default function ChatArea({
                     onClick={() => {
                       setShowPlusMenu(!showPlusMenu);
                       setActiveSubmenu('main');
+                      refocusInput();
                     }}
                     className={`p-2 rounded-xl transition-all cursor-pointer ${
                       showPlusMenu 
@@ -1373,7 +1336,10 @@ export default function ChatArea({
                 {/* Speech Dictation */}
                 <button
                   type="button"
-                  onClick={handleToggleSpeech}
+                  onClick={() => {
+                    handleToggleSpeech();
+                    refocusInput();
+                  }}
                   className={`p-2 rounded-xl transition-all ${
                     isListening 
                       ? 'text-red-400 bg-red-950/20 border border-red-900/40 animate-pulse' 
@@ -1389,7 +1355,10 @@ export default function ChatArea({
                 {/* Web Search Mode Toggle */}
                 <button
                   type="button"
-                  onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                  onClick={() => {
+                    setWebSearchEnabled(!webSearchEnabled);
+                    refocusInput();
+                  }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold font-sans transition-all ${
                     webSearchEnabled 
                       ? 'bg-[#a8c7fa]/15 border-[#a8c7fa]/35 text-[#a8c7fa]' 
@@ -1405,7 +1374,10 @@ export default function ChatArea({
                 <button
                   type="button"
                   disabled={webSearchEnabled}
-                  onClick={() => setThinkingEnabled(!thinkingEnabled)}
+                  onClick={() => {
+                    setThinkingEnabled(!thinkingEnabled);
+                    refocusInput();
+                  }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold font-sans transition-all ${
                     thinkingEnabled && !webSearchEnabled
                       ? 'bg-[#a8c7fa]/15 border-[#a8c7fa]/35 text-[#a8c7fa]' 
@@ -1424,7 +1396,10 @@ export default function ChatArea({
                   <button
                     type="button"
                     disabled={webSearchEnabled}
-                    onClick={() => setShowModelDropdown(!showModelDropdown)}
+                    onClick={() => {
+                      setShowModelDropdown(!showModelDropdown);
+                      refocusInput();
+                    }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold font-sans transition-all select-none ${
                       webSearchEnabled
                         ? 'bg-transparent border-[#303134]/50 text-slate-600 cursor-not-allowed opacity-50'
@@ -1445,6 +1420,7 @@ export default function ChatArea({
                           onClick={() => {
                             onModelChange(m.id);
                             setShowModelDropdown(false);
+                            refocusInput();
                           }}
                           className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-left text-xs font-sans transition-all ${
                             m.id === selectedModel

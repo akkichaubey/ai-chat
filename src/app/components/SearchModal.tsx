@@ -42,6 +42,16 @@ export default function SearchModal({
   const [filterProjectId, setFilterProjectId] = useState<string>('all');
   const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | '7days' | '30days'>('all');
   const [filterPersona, setFilterPersona] = useState<string>('all');
+  const [mountedNow, setMountedNow] = useState(0);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        setMountedNow(Date.now());
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -60,8 +70,7 @@ export default function SearchModal({
     // 3. Filter by Date Range
     const sessionTime = parseInt(session.id, 10);
     if (!isNaN(sessionTime) && filterDateRange !== 'all') {
-      const now = Date.now();
-      const diff = now - sessionTime;
+      const diff = (mountedNow || sessionTime) - sessionTime;
       const oneDay = 24 * 60 * 60 * 1000;
       
       if (filterDateRange === 'today' && diff > oneDay) return false;
@@ -144,7 +153,7 @@ export default function SearchModal({
             </span>
             <select
               value={filterDateRange}
-              onChange={(e: any) => setFilterDateRange(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterDateRange(e.target.value as 'all' | 'today' | '7days' | '30days')}
               className="bg-[#131314] border border-[#303134] rounded-xl py-1.5 px-2.5 text-[10px] text-slate-300 focus:outline-none"
             >
               <option value="all">Anytime</option>
@@ -206,7 +215,7 @@ export default function SearchModal({
                           </span>
                         )}
                         <span>•</span>
-                        <span>{new Date(parseInt(session.id, 10) || Date.now()).toLocaleDateString()}</span>
+                        <span>{new Date(parseInt(session.id, 10) || mountedNow).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>

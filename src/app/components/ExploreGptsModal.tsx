@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Search, Trash2, Edit3, Plus, Compass, Sparkles, Code, GraduationCap, Lightbulb } from 'lucide-react';
+import { X, Search, Trash2, Edit3, Plus, Compass } from 'lucide-react';
 
 export interface CustomGpt {
   id: string;
@@ -125,9 +125,12 @@ export default function ExploreGptsModal({
   // Reset editor state when modal opens/closes or view changes
   useEffect(() => {
     if (!isOpen) {
-      setView('explore');
-      setSearchQuery('');
-      resetEditor();
+      const timer = setTimeout(() => {
+        setView('explore');
+        setSearchQuery('');
+        resetEditor();
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
