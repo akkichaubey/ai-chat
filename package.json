@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",
-    "@google/genai": "^2.6.0",
+    "@google/genai": "^2.7.0",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "react": "19.2.4",
@@ -29,5 +29,12 @@
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@google/genai",
+      "es5-ext",
+      "protobufjs"
+    ]
   }
 }
