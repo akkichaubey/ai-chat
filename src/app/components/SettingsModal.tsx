@@ -67,7 +67,7 @@ export default function SettingsModal({
   const [newMemoryValue, setNewMemoryValue] = useState('');
 
   // Subscription/Billing States
-  const [userPlan, setUserPlan] = useState<'free' | 'pro' | 'pro_plus'>('free');
+  const [userPlan, setUserPlan] = useState<'free' | 'pro' | 'pro_plus'>('pro_plus');
   const [upgradeProcessing, setUpgradeProcessing] = useState<string | null>(null);
 
   // Sync internal states
@@ -98,6 +98,9 @@ export default function SettingsModal({
         const savedPlan = localStorage.getItem('gemma_subscription_plan');
         if (savedPlan) {
           setUserPlan(savedPlan as 'free' | 'pro' | 'pro_plus');
+        } else {
+          localStorage.setItem('gemma_subscription_plan', 'pro_plus');
+          setUserPlan('pro_plus');
         }
       }, 0);
       return () => clearTimeout(syncTimer);
@@ -531,12 +534,12 @@ export default function SettingsModal({
 
                   <button
                     onClick={() => handleUpgradePlan('pro')}
-                    disabled={userPlan === 'pro' || upgradeProcessing !== null}
+                    disabled={userPlan === 'pro' || userPlan === 'pro_plus' || upgradeProcessing !== null}
                     className="w-full py-2.5 bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#131314] disabled:opacity-40 disabled:hover:bg-[#a8c7fa] text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
                   >
                     {upgradeProcessing === 'pro' ? (
                       <span className="w-3.5 h-3.5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></span>
-                    ) : userPlan === 'pro' ? (
+                    ) : (userPlan === 'pro' || userPlan === 'pro_plus') ? (
                       'Plan Active'
                     ) : (
                       'Upgrade License'
