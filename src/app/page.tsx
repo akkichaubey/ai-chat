@@ -6,6 +6,9 @@ import ChatArea from './components/ChatArea';
 import SettingsModal from './components/SettingsModal';
 import VoiceModeOverlay from './components/VoiceModeOverlay';
 import ExploreGptsModal, { CustomGpt } from './components/ExploreGptsModal';
+import ProjectModal, { Project } from './components/ProjectModal';
+import PromptLibraryModal from './components/PromptLibraryModal';
+import SearchModal from './components/SearchModal';
 
 interface Attachment {
   name: string;
@@ -38,6 +41,7 @@ interface ChatSession {
   activeSkill?: string;
   thinkingEnabled?: boolean;
   webSearchEnabled?: boolean;
+  projectId?: string;
 }
 
 interface Settings {
@@ -92,6 +96,16 @@ export default function Home() {
   const [customGpts, setCustomGpts] = useState<CustomGpt[]>([]);
   const [isExploreGptsOpen, setIsExploreGptsOpen] = useState(false);
 
+  // Projects State
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [activeEditingProject, setActiveEditingProject] = useState<Project | null>(null);
+
+  // Prompt Library & Search Modal States
+  const [isPromptLibraryOpen, setIsPromptLibraryOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [injectedPrompt, setInjectedPrompt] = useState('');
+
   // 1. Initial Load (runs only on mount to prevent hydration mismatch)
   useEffect(() => {
     setMounted(true);
@@ -112,6 +126,16 @@ export default function Home() {
       }
     }
 
+    // Load Projects
+    const savedProjects = localStorage.getItem('gemma_projects');
+    if (savedProjects) {
+      try {
+        setProjects(JSON.parse(savedProjects));
+      } catch (e) {
+        console.error('Failed to parse projects', e);
+      }
+    }
+
     // Load Sessions
     const savedSessions = localStorage.getItem('gemma_chat_sessions');
     const savedActiveId = localStorage.getItem('gemma_chat_active_id');
@@ -124,7 +148,6 @@ export default function Home() {
     if (savedSessions) {
       try {
         const parsed = JSON.parse(savedSessions);
-        // Migrate legacy sessions
         parsedSessions = parsed.map((s: any) => ({
           id: s.id,
           title: s.title || 'New Chat',
@@ -140,7 +163,8 @@ export default function Home() {
           activeStyle: s.activeStyle || 'normal',
           activeSkill: s.activeSkill || 'default',
           thinkingEnabled: s.thinkingEnabled ?? false,
-          webSearchEnabled: s.webSearchEnabled ?? false
+          webSearchEnabled: s.webSearchEnabled ?? false,
+          projectId: s.projectId
         }));
       } catch (e) {
         console.error('Failed to parse sessions', e);
@@ -256,7 +280,6 @@ export default function Home() {
     saveMessagesToLocalStorage(updatedMessagesMap);
     localStorage.setItem('gemma_chat_active_id', newId);
 
-    // Collapse sidebar on mobile automatically
     if (window.innerWidth < 768) {
       setIsSidebarOpen(false);
     }
@@ -276,7 +299,6 @@ export default function Home() {
   const handleDeleteSession = (id: string) => {
     const updatedSessions = sessions.filter((s) => s.id !== id);
     
-    // Clean up mapping
     const updatedMessagesMap = { ...messagesMap };
     delete updatedMessagesMap[id];
 
@@ -293,7 +315,6 @@ export default function Home() {
     saveMessagesToLocalStorage(updatedMessagesMap);
     localStorage.setItem('gemma_chat_active_id', newActiveId);
 
-    // If no sessions remain, trigger creation of a clean one
     if (updatedSessions.length === 0) {
       setTimeout(() => {
         handleCreateSession();
@@ -324,20 +345,66 @@ export default function Home() {
     setSettings(newSettings);
     localStorage.setItem('gemma_chat_settings', JSON.stringify(newSettings));
 
-    // Update active session's persona and prompt to immediately apply setting custom instructions
     if (activeSessionId) {
       const updatedSessions = sessions.map((s) => 
         s.id === activeSessionId 
-          ? { 
-              ...s, 
-              persona: newSettings.persona, 
-              customSystemPrompt: newSettings.customSystemPrompt 
-            } 
+          ? { ...s, persona: newSettings.persona, customSystemPrompt: newSettings.customSystemPrompt } 
           : s
       );
       setSessions(updatedSessions);
       saveSessionsToLocalStorage(updatedSessions);
     }
+  };
+
+  // 8.1. Projects Helpers
+  const saveProjectsToLocalStorage = (newProjects: Project[]) => {
+    localStorage.setItem('gemma_projects', JSON.stringify(newProjects));
+  };
+
+  const handleSaveProject = (name: string, description: string, instructions: string) => {
+    let updatedProjects: Project[] = [];
+    if (activeEditingProject) {
+      // Edit mode
+      updatedProjects = projects.map(p =>
+        p.id === activeEditingProject.id
+          ? { ...p, name, description, instructions }
+          : p
+      );
+      setActiveEditingProject(null);
+    } else {
+      // Create mode
+      const newProject: Project = {
+        id: Date.now().toString(),
+        name,
+        description,
+        instructions,
+        createdAt: Date.now()
+      };
+      updatedProjects = [newProject, ...projects];
+    }
+    setProjects(updatedProjects);
+    saveProjectsToLocalStorage(updatedProjects);
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    const updatedProjects = projects.filter(p => p.id !== projectId);
+    setProjects(updatedProjects);
+    saveProjectsToLocalStorage(updatedProjects);
+
+    // Remove this project ID from any chats
+    const updatedSessions = sessions.map(s =>
+      s.projectId === projectId ? { ...s, projectId: undefined } : s
+    );
+    setSessions(updatedSessions);
+    saveSessionsToLocalStorage(updatedSessions);
+  };
+
+  const handleMoveSessionToProject = (sessionId: string, projectId?: string) => {
+    const updatedSessions = sessions.map(s =>
+      s.id === sessionId ? { ...s, projectId } : s
+    );
+    setSessions(updatedSessions);
+    saveSessionsToLocalStorage(updatedSessions);
   };
 
   // 8.5. Handle quick model switching from input toolbar
@@ -365,11 +432,7 @@ export default function Home() {
     if (activeSessionId) {
       const updatedSessions = sessions.map(s =>
         s.id === activeSessionId 
-          ? { 
-              ...s, 
-              webSearchEnabled: val, 
-              thinkingEnabled: val ? false : s.thinkingEnabled 
-            } 
+          ? { ...s, webSearchEnabled: val, thinkingEnabled: val ? false : s.thinkingEnabled } 
           : s
       );
       setSessions(updatedSessions);
@@ -420,6 +483,28 @@ export default function Home() {
       };
 
       let compiledSystemPrompt = activeSession?.customSystemPrompt || settings.customSystemPrompt || '';
+      if (activeSession?.projectId) {
+        const project = projects.find(p => p.id === activeSession.projectId);
+        if (project?.instructions) {
+          compiledSystemPrompt += `\n\n[PROJECT CONTEXT & INSTRUCTIONS: "${project.name}"]\n${project.instructions}`;
+        }
+      }
+      
+      // Inject AI memories from Memory Bank
+      if (typeof window !== 'undefined') {
+        const savedMemories = localStorage.getItem('gemma_memories');
+        if (savedMemories) {
+          try {
+            const parsedMem = JSON.parse(savedMemories);
+            if (parsedMem.length > 0) {
+              compiledSystemPrompt += `\n\n[USER CONTEXT & MEMORY BANK (Remember these key facts about the user):]\n`;
+              parsedMem.forEach((m: any) => {
+                compiledSystemPrompt += `- ${m.key}: ${m.value}\n`;
+              });
+            }
+          } catch(e){}
+        }
+      }
       if (activeSession?.activeStyle && STYLE_PROMPTS[activeSession.activeStyle]) {
         compiledSystemPrompt += STYLE_PROMPTS[activeSession.activeStyle];
       }
@@ -479,7 +564,7 @@ export default function Home() {
         });
       }
 
-      // Save to localStorage exactly once when streaming finishes successfully
+      // Save to localStorage once when streaming finishes
       setMessagesMap((prev) => {
         const prevMsgs = prev[activeSessionId] || [];
         const updated = prevMsgs.map((m) =>
@@ -795,6 +880,19 @@ export default function Home() {
         isOpen={isSidebarOpen}
         onToggleOpen={() => setIsSidebarOpen(!isSidebarOpen)}
         onOpenExploreGpts={() => setIsExploreGptsOpen(true)}
+        projects={projects}
+        onCreateProject={() => {
+          setActiveEditingProject(null);
+          setIsProjectModalOpen(true);
+        }}
+        onEditProject={(project) => {
+          setActiveEditingProject(project);
+          setIsProjectModalOpen(true);
+        }}
+        onDeleteProject={handleDeleteProject}
+        onMoveSessionToProject={handleMoveSessionToProject}
+        onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenPromptLibrary={() => setIsPromptLibraryOpen(true)}
       />
 
       <ChatArea
@@ -824,6 +922,9 @@ export default function Home() {
         activeSkill={activeSession?.activeSkill}
         onStyleChange={handleStyleChange}
         onSkillChange={handleSkillChange}
+        injectedPrompt={injectedPrompt}
+        clearInjectedPrompt={() => setInjectedPrompt('')}
+        onOpenPromptLibrary={() => setIsPromptLibraryOpen(true)}
       />
 
       {/* Configuration Settings Modal Overlay */}
@@ -852,6 +953,34 @@ export default function Home() {
         onSaveGpt={handleSaveGpt}
         onDeleteGpt={handleDeleteGpt}
         onSelectGpt={handleSelectGpt}
+      />
+
+      {/* Project Workspace Modal Overlay */}
+      <ProjectModal
+        isOpen={isProjectModalOpen}
+        onClose={() => {
+          setIsProjectModalOpen(false);
+          setActiveEditingProject(null);
+        }}
+        project={activeEditingProject}
+        onSave={handleSaveProject}
+      />
+
+      {/* Prompt Library Modal Overlay */}
+      <PromptLibraryModal
+        isOpen={isPromptLibraryOpen}
+        onClose={() => setIsPromptLibraryOpen(false)}
+        onSelectPrompt={(content) => setInjectedPrompt(content)}
+      />
+
+      {/* Global Workspace Search Modal Overlay */}
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        sessions={sessions}
+        messagesMap={messagesMap}
+        projects={projects}
+        onSelectSession={handleSelectSession}
       />
     </div>
   );

@@ -15,8 +15,22 @@ import {
   Compass,
   PanelLeftClose,
   SquarePen,
-  MoreHorizontal
+  MoreHorizontal,
+  Folder,
+  FolderOpen,
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  FolderInput
 } from 'lucide-react';
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  instructions: string;
+  createdAt: number;
+}
 
 interface ChatSession {
   id: string;
@@ -24,6 +38,7 @@ interface ChatSession {
   pinned?: boolean;
   persona?: string;
   customSystemPrompt?: string;
+  projectId?: string;
 }
 
 interface SidebarProps {
@@ -38,6 +53,15 @@ interface SidebarProps {
   isOpen: boolean;
   onToggleOpen: () => void;
   onOpenExploreGpts: () => void;
+  userProfile?: { name: string; email: string; avatar_url?: string } | null;
+  onSignOut?: () => void;
+  projects?: Project[];
+  onCreateProject?: () => void;
+  onEditProject?: (project: Project) => void;
+  onDeleteProject?: (id: string) => void;
+  onMoveSessionToProject?: (sessionId: string, projectId?: string) => void;
+  onOpenSearch?: () => void;
+  onOpenPromptLibrary?: () => void;
 }
 
 export default function Sidebar({
@@ -51,12 +75,24 @@ export default function Sidebar({
   onOpenSettings,
   isOpen,
   onToggleOpen,
-  onOpenExploreGpts
+  onOpenExploreGpts,
+  userProfile,
+  onSignOut,
+  projects = [],
+  onCreateProject,
+  onEditProject,
+  onDeleteProject,
+  onMoveSessionToProject,
+  onOpenSearch,
+  onOpenPromptLibrary
 }: SidebarProps) {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [tempTitle, setTempTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
+  const [isMoveToProjectOpen, setIsMoveToProjectOpen] = useState(false);
+  const [activeMoveSessionId, setActiveMoveSessionId] = useState<string | null>(null);
 
   const handleStartRename = (e: React.MouseEvent, id: string, currentTitle: string) => {
     e.stopPropagation();
@@ -84,9 +120,9 @@ export default function Sidebar({
     session.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Group into pinned and unpinned
-  const pinnedSessions = filteredSessions.filter(s => s.pinned);
-  const unpinnedSessions = filteredSessions.filter(s => !s.pinned);
+  // Group into pinned and unpinned (excluding project chats)
+  const pinnedSessions = filteredSessions.filter(s => s.pinned && !s.projectId);
+  const unpinnedSessions = filteredSessions.filter(s => !s.pinned && !s.projectId);
 
   // Helper to group unpinned sessions chronologically
   const getChronologicalGroup = (id: string): string => {
@@ -240,7 +276,7 @@ export default function Sidebar({
                   }}
                 />
                 <div 
-                  className="absolute right-0 top-7 z-50 bg-[#212121] border border-neutral-850 rounded-lg shadow-xl py-1 w-32 animate-in fade-in zoom-in-95 duration-100"
+                  className="absolute right-0 top-7 z-50 bg-[#1e1f20] border border-[#303134] rounded-2xl shadow-2xl p-1.5 w-36 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 select-none"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -249,9 +285,9 @@ export default function Sidebar({
                       onTogglePinSession(session.id);
                       setActiveDropdownId(null);
                     }}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[#ececf1] hover:bg-neutral-800 transition-colors"
+                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-slate-300 hover:text-white hover:bg-[#2d2f31]/80 rounded-xl transition-all cursor-pointer"
                   >
-                    <Pin className={`w-3.5 h-3.5 ${session.pinned ? 'fill-current text-[#a8c7fa]' : ''}`} />
+                    <Pin className={`w-3.5 h-3.5 text-slate-400 ${session.pinned ? 'fill-current text-[#a8c7fa]' : ''}`} />
                     {session.pinned ? 'Unpin' : 'Pin'}
                   </button>
                   <button
@@ -260,10 +296,22 @@ export default function Sidebar({
                       handleStartRename(e, session.id, session.title);
                       setActiveDropdownId(null);
                     }}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-[#ececf1] hover:bg-neutral-800 transition-colors"
+                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-slate-300 hover:text-white hover:bg-[#2d2f31]/80 rounded-xl transition-all cursor-pointer"
                   >
-                    <Edit3 className="w-3.5 h-3.5" />
+                    <Edit3 className="w-3.5 h-3.5 text-slate-400" />
                     Rename
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMoveSessionId(session.id);
+                      setIsMoveToProjectOpen(true);
+                      setActiveDropdownId(null);
+                    }}
+                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-slate-300 hover:text-white hover:bg-[#2d2f31]/80 rounded-xl transition-all cursor-pointer"
+                  >
+                    <FolderInput className="w-3.5 h-3.5 text-slate-400" />
+                    Move to...
                   </button>
                   <button
                     onClick={(e) => {
@@ -271,7 +319,7 @@ export default function Sidebar({
                       onDeleteSession(session.id);
                       setActiveDropdownId(null);
                     }}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-xs text-rose-450 hover:bg-rose-950/20 transition-colors border-t border-neutral-850/40 mt-1"
+                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-rose-450 hover:bg-rose-950/20 rounded-xl transition-all cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     Delete
@@ -338,36 +386,123 @@ export default function Sidebar({
         </div>
 
         {/* Search Session Bar */}
-        <div className="px-3.5 mb-2.5 shrink-0">
-          <div className="relative flex items-center">
+        <div className="px-3.5 mb-2.5 shrink-0" onClick={onOpenSearch}>
+          <div className="relative flex items-center cursor-pointer">
             <Search className="absolute left-3 w-3.5 h-3.5 text-neutral-500" />
             <input
               type="text"
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#212121]/60 border border-transparent focus:border-neutral-800 rounded-lg py-1.5 pl-9 pr-8 text-xs text-[#ececf1] placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-800 transition-colors"
+              placeholder="Search chats & contents..."
+              readOnly
+              className="w-full bg-[#212121]/60 border border-transparent focus:border-neutral-800 rounded-lg py-1.5 pl-9 pr-8 text-xs text-[#ececf1] placeholder-neutral-500 cursor-pointer focus:outline-none transition-colors"
             />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 p-0.5 rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Explore GPTs trigger row */}
-        <div className="px-3.5 mb-2 shrink-0">
+        {/* Explore GPTs & Prompt Library trigger row */}
+        <div className="px-3.5 mb-2 shrink-0 grid grid-cols-2 gap-2 select-none">
           <button
             onClick={onOpenExploreGpts}
-            className="flex items-center gap-2.5 w-full py-2 px-2.5 rounded-lg text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121]/50 border border-transparent transition-all text-xs font-semibold cursor-pointer"
+            className="flex items-center justify-center gap-1.5 w-full py-2 px-1.5 rounded-lg text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121]/50 border border-transparent transition-all text-xs font-semibold cursor-pointer"
           >
-            <Compass className="w-4 h-4 text-[#a8c7fa]" />
+            <Compass className="w-3.5 h-3.5 text-[#a8c7fa] shrink-0" />
             Explore GPTs
           </button>
+          <button
+            onClick={onOpenPromptLibrary}
+            className="flex items-center justify-center gap-1.5 w-full py-2 px-1.5 rounded-lg text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121]/50 border border-transparent transition-all text-xs font-semibold cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#a8c7fa] shrink-0" />
+            Prompt Lib
+          </button>
+        </div>
+
+        {/* Projects Section */}
+        <div className="px-3.5 mb-2 shrink-0 border-b border-neutral-800/20 pb-2">
+          <div className="flex items-center justify-between text-neutral-400 mb-1 px-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider">Project Workspaces</span>
+            {onCreateProject && (
+              <button 
+                onClick={onCreateProject}
+                className="p-1 rounded hover:bg-[#212121] hover:text-white transition-colors cursor-pointer"
+                title="Create Project"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-thin">
+            {projects.length === 0 ? (
+              <div className="text-[11px] text-neutral-600 italic px-2.5 py-1">
+                No projects created yet.
+              </div>
+            ) : (
+              projects.map(project => {
+                const isExpanded = !!expandedProjects[project.id];
+                const projectSessions = filteredSessions.filter(s => s.projectId === project.id);
+                
+                return (
+                  <div key={project.id} className="rounded-lg overflow-hidden bg-neutral-900/30 border border-neutral-800/20">
+                    <div 
+                      onClick={() => setExpandedProjects(prev => ({ ...prev, [project.id]: !isExpanded }))}
+                      className="group flex items-center justify-between py-1.5 px-2 hover:bg-[#212121]/30 cursor-pointer select-none text-xs"
+                    >
+                      <div className="flex items-center gap-1.5 text-neutral-300 font-semibold truncate flex-1 pr-2">
+                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-neutral-500" /> : <ChevronRight className="w-3.5 h-3.5 text-neutral-500" />}
+                        {isExpanded ? <FolderOpen className="w-3.5 h-3.5 text-[#a8c7fa]" /> : <Folder className="w-3.5 h-3.5 text-[#a8c7fa]" />}
+                        <span className="truncate" title={project.name}>{project.name}</span>
+                        {projectSessions.length > 0 && (
+                          <span className="text-[9px] bg-neutral-800 text-neutral-400 px-1 rounded-full">{projectSessions.length}</span>
+                        )}
+                      </div>
+                      
+                      {/* Project actions (Edit, Delete) on hover */}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {onEditProject && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditProject(project);
+                            }}
+                            className="p-0.5 rounded text-neutral-500 hover:text-white hover:bg-neutral-850 cursor-pointer"
+                            title="Edit project"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </button>
+                        )}
+                        {onDeleteProject && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Are you sure you want to delete "${project.name}"? Chats inside will be moved back to general list.`)) {
+                                onDeleteProject(project.id);
+                              }
+                            }}
+                            className="p-0.5 rounded text-neutral-500 hover:text-rose-450 hover:bg-rose-950/20 cursor-pointer"
+                            title="Delete project"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Collapsible Nested Chats */}
+                    {isExpanded && (
+                      <div className="pl-2.5 pr-1 py-1 space-y-0.5 bg-neutral-950/20 border-t border-neutral-800/10">
+                        {projectSessions.length === 0 ? (
+                          <div className="text-[10px] text-neutral-600 italic px-2 py-1 select-none">
+                            No chats in this project.
+                          </div>
+                        ) : (
+                          projectSessions.map(session => renderSessionItem(session))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
 
         {/* Chat List Grouped Chronologically */}
@@ -407,22 +542,93 @@ export default function Sidebar({
         </div>
 
         {/* Footer ChatGPT style User Settings row */}
-        <div className="p-3.5 bg-[#171717] border-t border-neutral-800/40 shrink-0">
+        <div className="p-3.5 bg-[#171717] border-t border-neutral-800/40 shrink-0 space-y-2">
           <button
             onClick={onOpenSettings}
             className="flex items-center gap-3 w-full py-2 px-2.5 rounded-lg text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all text-sm cursor-pointer border border-transparent"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#a8c7fa] to-purple-500 flex items-center justify-center text-[10px] font-bold text-[#131314] shadow-inner select-none shrink-0">
-              AU
-            </div>
+            {userProfile?.avatar_url ? (
+              <img 
+                src={userProfile.avatar_url} 
+                alt={userProfile.name} 
+                className="w-8 h-8 rounded-full object-cover shrink-0 select-none" 
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#a8c7fa] to-purple-500 flex items-center justify-center text-[10px] font-bold text-[#131314] shadow-inner select-none shrink-0">
+                {(userProfile?.name || 'AI').slice(0, 2).toUpperCase()}
+              </div>
+            )}
             <div className="flex-1 text-left min-w-0">
-              <div className="text-xs font-semibold text-[#ececf1] truncate leading-normal">AI User</div>
+              <div className="text-xs font-semibold text-[#ececf1] truncate leading-normal">
+                {userProfile?.name || 'AI User'}
+              </div>
               <div className="text-[10px] text-neutral-500 truncate leading-none">Settings & Instructions</div>
             </div>
             <Settings className="w-4 h-4 text-neutral-500 shrink-0" />
           </button>
+          
+          {onSignOut && (
+            <button
+              onClick={onSignOut}
+              className="flex items-center justify-center w-full py-1.5 px-2.5 rounded-lg border border-neutral-800/40 text-neutral-500 hover:text-rose-450 hover:bg-rose-950/15 transition-all text-xs font-semibold cursor-pointer"
+            >
+              Sign Out
+            </button>
+          )}
         </div>
       </aside>
+
+      {/* Move to Project Modal */}
+      {isMoveToProjectOpen && activeMoveSessionId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 font-sans select-none animate-in fade-in duration-200">
+          <div className="fixed inset-0" onClick={() => setIsMoveToProjectOpen(false)} />
+          <div className="relative w-full max-w-sm bg-[#1e1f20] border border-[#303134] rounded-3xl p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-[#303134] pb-3 text-slate-100">
+              <span className="text-sm font-bold flex items-center gap-1.5">
+                <FolderInput className="w-4 h-4 text-[#a8c7fa]" /> Move Chat to Project
+              </span>
+              <button 
+                onClick={() => setIsMoveToProjectOpen(false)} 
+                className="p-1 rounded-full hover:bg-neutral-800 text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            
+            <div className="space-y-2 py-1 max-h-60 overflow-y-auto scrollbar-thin">
+              {/* Unassigned / Clear project */}
+              <button
+                onClick={() => {
+                  if (onMoveSessionToProject) {
+                    onMoveSessionToProject(activeMoveSessionId, undefined);
+                  }
+                  setIsMoveToProjectOpen(false);
+                }}
+                className="w-full text-left text-xs p-2.5 rounded-xl border border-[#303134] hover:bg-neutral-850 hover:border-neutral-750 text-neutral-300 transition-all font-semibold flex items-center gap-2 cursor-pointer"
+              >
+                <Folder className="w-3.5 h-3.5 text-neutral-500" />
+                Unassigned (Move out of project)
+              </button>
+              
+              {projects.map(project => (
+                <button
+                  key={project.id}
+                  onClick={() => {
+                    if (onMoveSessionToProject) {
+                      onMoveSessionToProject(activeMoveSessionId, project.id);
+                    }
+                    setIsMoveToProjectOpen(false);
+                  }}
+                  className="w-full text-left text-xs p-2.5 rounded-xl border border-transparent bg-neutral-900/60 hover:bg-neutral-800 text-slate-200 transition-all font-semibold flex items-center gap-2 cursor-pointer"
+                >
+                  <Folder className="w-3.5 h-3.5 text-[#a8c7fa]" />
+                  {project.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

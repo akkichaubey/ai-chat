@@ -1,188 +1,605 @@
-# AI Workspace & Productivity Dashboard
+# AI Chat SaaS Roadmap
 
-## Product Requirements, Architecture & Development Roadmap
-
-This document serves as the developer guidelines and context directory for the AI Workspace Dashboard. It outlines the project's vision, active system architecture, implemented components, coding standards, styling choices, and future modules.
-
----
-
-## 📖 Project Vision & Overview
-The AI Workspace Dashboard is designed to serve as a high-performance web dashboard. It acts as an intelligent assistant capable of content writing, brainstorming, programming help, sandboxed code testing, document understanding, and real-time voice conversations.
-
-### Core Tech Stack
-- **Framework**: Next.js 15 (Turbopack) using the App Router
-- **Language**: TypeScript (strict mode)
-- **Styling**: Tailwind CSS v4.0 with customized color directives
-- **AI Integration**: Official `@google/genai` JS SDK
-- **Speech Capabilities**: Browser Web Speech API (`SpeechRecognition` and `SpeechSynthesis`)
+> Product Vision: Build a ChatGPT-style AI SaaS using Next.js + Supabase + Gemini with premium features such as Memory, Projects, Assistants, Search, Export, and Subscriptions.
+>
+> **NOTE**: Premium client features such as **Voice Mode**, **Multi-File Sandpack Sandbox**, **Custom Themes**, **Screenshotting**, and **Context-Aware Quick Actions** are already fully implemented on the client-side and will be securely migrated to database storage during the SaaS transition phases.
+>
+> Multimodal features (Image Generation, Video, Advanced File Intelligence) are postponed for a future release.
 
 ---
 
-## 📂 Project Directory Structure
-```
-ai-chat/
-├── .env.local                    # Local environment keys (e.g. GEMINI_API_KEY)
-├── package.json                  # Dependencies (google/genai, lucide-react, react-markdown)
-├── tsconfig.json                 # TypeScript configurations
-├── src/
-│   └── app/
-│       ├── layout.tsx            # Global HTML wrapper
-│       ├── page.tsx              # Main dashboard wrapper coordinating all sub-states
-│       ├── globals.css           # Styling system & custom Google AI Studio theme
-│       ├── api/
-│       │   └── chat/
-│       │       └── route.ts      # Server-side Gemini/Gemma API stream orchestrator
-│       └── components/
-│           ├── Sidebar.tsx       # ChatGPT-style collapsible, chronologically-grouped history with options menus
-│           ├── ChatArea.tsx      # Conversation viewport & toolbar controls
-│           ├── SettingsModal.tsx # AI customization modal (Personas, Temperature, System Instructions)
-│           ├── ExploreGptsModal.tsx # Custom GPT explore list & custom assistant builder form
-│           └── VoiceModeOverlay.tsx # ChatGPT-style fullscreen voice dialogue overlay
-```
+# Tech Stack
+
+## Frontend
+- Next.js 15
+- React
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+
+## Backend
+- Next.js API Routes
+- Gemini API
+
+## Database
+- Supabase PostgreSQL
+
+## Authentication
+- Supabase Auth
+  - Google Login
+  - GitHub Login
+  - Magic Link Login
+
+## Payments
+- Razorpay
+
+## Deployment
+- Vercel
 
 ---
 
-## 🎨 Theme & Styling System
-The application features a comprehensive theme customization engine with presets defined in [globals.css](file:///d:/htdocs/Goal/react/demo/ai-chat/src/app/globals.css) and switchable in [SettingsModal.tsx](file:///d:/htdocs/Goal/react/demo/ai-chat/src/app/components/SettingsModal.tsx):
-
-### Supported Theme Presets
-1. **Google AI Studio (Default)**: Deep charcoal neutral grays (`#131314` background, `#a8c7fa` blue highlights).
-2. **Claude Charcoal**: Charcoal dark UI mimicking Claude's workspace (`#191919` background, `#cc9c7a` tan highlights).
-3. **Midnight Cosmic Purple**: Galactic indigo workspace (`#090616` background, `#c084fc` purple highlights).
-4. **Cyberpunk Neon**: High-contrast cyberpunk styling (`#040406` background, `#ff007f` neon accents).
-5. **Forest Green**: Calming organic dark theme (`#0a0f0b` background, `#4ade80` emerald highlights).
-
-- **CSS Variables & Tailwind v4.0**: System colors are bound to CSS variables (`--background`, `--border`, etc.) inside the theme classes. Tailwind v4.0 `@theme` overrides reference these custom properties dynamically.
-- **Animations**: Expanding scale animations (`pulse-glow`) are used for loading states and interactive hovering.
-- **Visual Refinements**: Built with a border-free chat canvas layout by omitting horizontal dividers around the header and footer inside [ChatArea.tsx](file:///d:/htdocs/Goal/react/demo/ai-chat/src/app/components/ChatArea.tsx) for a cleaner, modern look.
+# Product Roadmap
 
 ---
 
-## 🤖 AI Conversation Features (Phase 1 MVP - Fully Implemented)
+# Phase 0 — Foundation
 
-### 1. High-Reasoning Companion (Gemma 4)
-- Powered by `gemma-4-31b-it` by default.
-- Supports **Thinking Mode** toggles. When enabled, it configures Gemma 4's high-reasoning mode (`thinkingLevel: 'high'`) or Gemini's thinking budget (`thinkingBudget: -1`) to yield deep, step-by-step reasoning steps.
+## Goal
+Set up authentication, database, and user management.
 
-### 2. Grounded Web Search Override
-- When the **Web Search** toggle is active, the system dynamically routes queries to `gemini-2.5-flash` with the Google Search tool (`googleSearch: {}`) enabled for real-time market grounding.
+## Supabase Setup
+Enable:
+- Authentication
+- PostgreSQL
+- RLS
+- Storage (future use)
 
-### 3. Custom AI Personas & System Instructions
-- **General Assistant**: General-purpose helpful AI.
-- **Creative Writer**: Brainstorms outline scripts, drafting essays, copy editing.
-- **Code Architect**: Writes modular, performance-optimized, secure script files.
-- **Custom Prompt**: Allows user-defined behavior instructions.
-- Selectable inside [SettingsModal.tsx](file:///d:/htdocs/Goal/react/demo/ai-chat/src/app/components/SettingsModal.tsx), automatically updating the system instructions parameter (`systemInstruction`) sent to the backend endpoint.
+## Database Tables
 
-### 4. Robust API Handler & Backoff Retry Loop
-- Implemented in [route.ts](file:///d:/htdocs/Goal/react/demo/ai-chat/src/app/api/chat/route.ts).
-- Integrates a **4-attempt exponential backoff retry mechanism** to intercept transient `500 Internal` and `503 Service Unavailable` error spikes from Google AI Studio under heavy load, ensuring zero session drops for the frontend client.
-
-### 5. Multimodal & Document Attachments
-- **Images & PDFs**: Converted client-side to Base64 using `FileReader` and streamed in the API payload under `inlineData`.
-- **Text documents (TXT, CSV, JSON, LOG)**: Parsed client-side and dynamically appended inline into the prompt text container using structural formatting tags.
-
-### 6. Quick Model Selector
-- Fully decoupled from the workspace settings modal to optimize workspace usability. A quick dropdown selector is situated directly on the input chat toolbar in [ChatArea.tsx](file:///d:/htdocs/Goal/react/demo/ai-chat/src/app/components/ChatArea.tsx) for hot-swapping active model instances.
-
-### 7. Rich Chat Interaction Controls
-- **Clipboard Asset Paste**: Support for capturing and attaching clipboard-copied images and documents directly in the text input box using native `onPaste` handlers.
-- **In-place Prompt Editing**: Users can hover over and edit their sent messages. Modifying a message updates the workspace history and triggers a clean streaming regeneration from that point.
-
-### 8. Claude-Style Nested "+" Popover Menu
-Replaced the simple attachment button with a nested menu in [ChatArea.tsx](file:///d:/htdocs/Goal/react/demo/ai-chat/src/app/components/ChatArea.tsx) supporting:
-- **Attach Files**: Standard file uploads.
-- **Take a Screenshot**: Triggers native browser window/screen sharing and captures the frame to a canvas to attach.
-- **Web Search Toggle**: Quickly turns Google search grounding on/off.
-- **Use Style (Submenu)**: Set tone modifiers (**Normal**, **Learning**, **Concise**, **Explanatory**, **Formal**).
-- **Skills (Submenu)**: Choose specific capabilities (**Default**, **Code Debugger**, **UI/UX Inspector**, **Language Tutor**).
-
-### 9. Context-Aware Quick Action Pills
-When files are uploaded, context-aware prompt pills appear under the attachments inside [ChatArea.tsx](file:///d:/htdocs/Goal/react/demo/ai-chat/src/app/components/ChatArea.tsx). Clicking a pill instantly runs it:
-- **Image Actions**: `Convert to Code`, `UX/UI Audit`, `Suggest Variations`, `Extract Text (OCR)`.
-- **Document Actions**: `Summarize Takeaways`, `Extract Key Figures`, `Translate to English`.
-
----
-
-## 🎤 ChatGPT-Style Voice Mode (Talk to AI)
-A fullscreen voice mode is available by clicking the **Headphones button** in the chat header, featuring hands-free continuous conversation:
-
-### Speech Engines (Client-Side)
-- **Voice Input (STT)**: Utilizes browser `SpeechRecognition` to dictate sentences, auto-submitting them when the user stops talking.
-  - *Bug Fix*: Exposes an `isRecognitionActiveRef` state tracker inside [VoiceModeOverlay.tsx](file:///d:/htdocs/Goal/react/demo/ai-chat/src/app/components/VoiceModeOverlay.tsx) to prevent duplicate `.start()` calls, eliminating `InvalidStateError` browser console exceptions.
-- **Voice Output (TTS)**: Utilizes browser `SpeechSynthesis` to speak text responses.
-  - *Streaming Speech Synthesis*: Implements a sentence-by-sentence queue. As chunks stream from the API, completed sentences are enqueued for playback immediately, minimizing speaker latency.
-  - *Interruption Handling*: Tapping the visualizer or speaking while the AI is talking instantly triggers `window.speechSynthesis.cancel()`, stops audio output, and reactivates the microphone.
-  - *Silence Filters*: Filters out `'interrupted'` and `'canceled'` exceptions from utterance error hooks to keep the developer console clean.
-
-### Overlay UI States
-- **Listening State**: Central blue mic circle with expanding pulse waves.
-- **Thinking State**: Rotating dashed ring with a breathing glow core.
-- **Speaking State**: Multi-bar audio EQ equalizer animating scale.
-- **Settings Drawer**: Adjust language locales, synthesis voice models, continuous chat triggers, and speech rates (0.5x to 2.0x).
-
----
-
-## 💻 Developer Features: Sandboxed Console
-Inside assistant responses, any JavaScript or HTML code block features a **Run Code** panel:
-- Launches a sandboxed `iframe` with `sandbox="allow-scripts"` to execute scripts safely.
-- Overrides `console.log`, `console.warn`, `console.error`, and `console.info` to collect logs and render them inside a stylized console readout matching the dark Google grays theme.
-- Captures and displays runtime syntax or execution errors in red formatting.
-
----
-
-## ⚙️ Coding Standards & Reusable Patterns
-
-### 1. File & Module Structure
-- All core views must belong to `/src/app/components` as standalone client components (`'use client'`).
-- Shared services belong to `/src/app/services`.
-- State syncs belong to the parent page controller (`/src/app/page.tsx`).
-
-### 2. State Propagation
-- Child components must remain stateless wherever possible, receiving values and action triggers via props.
-- Message histories are updated using unified helper functions (like `triggerStreaming`) to guarantee that user message edits and assistant regenerations maintain state consistency:
-```typescript
-// Reusable pattern for triggering a streamed response from any message index
-const triggerStreaming = async (history: Message[]) => { ... }
+### profiles
+```sql
+id uuid primary key
+email text
+name text
+avatar_url text
+plan text default 'free'
+created_at timestamptz
+updated_at timestamptz
 ```
 
-### 3. Links and Citations
-- Any documentation referencing files must provide direct, clickable links with forward slashes (e.g. [Sidebar.tsx](file:///d:/htdocs/Goal/react/demo/ai-chat/src/app/components/Sidebar.tsx)).
+### chats
+```sql
+id uuid primary key
+user_id uuid references profiles(id)
+title text
+project_id uuid
+pinned boolean default false
+created_at timestamptz
+updated_at timestamptz
+```
+
+### messages
+```sql
+id uuid primary key
+chat_id uuid references chats(id)
+role text
+content text
+created_at timestamptz
+```
+
+### projects
+```sql
+id uuid primary key
+user_id uuid references profiles(id)
+name text
+description text
+instructions text
+created_at timestamptz
+updated_at timestamptz
+```
+
+### memories
+```sql
+id uuid primary key
+user_id uuid references profiles(id)
+key text
+value text
+created_at timestamptz
+updated_at timestamptz
+```
+
+### assistants
+```sql
+id uuid primary key
+user_id uuid references profiles(id)
+name text
+description text
+system_prompt text
+icon text
+temperature numeric
+created_at timestamptz
+updated_at timestamptz
+```
+
+### subscriptions
+```sql
+id uuid primary key
+user_id uuid references profiles(id)
+plan text
+status text
+current_period_end timestamptz
+created_at timestamptz
+```
+
+### usage_logs
+```sql
+id uuid primary key
+user_id uuid references profiles(id)
+messages_used integer
+tokens_used integer
+usage_date date
+```
 
 ---
 
-## 🗺️ Roadmap & Phase Execution
+# Phase 1 — Authentication
 
-### Phase 1: AI Chat Workspace (Completed ✅)
-- [x] Streamed text replies for Gemma 4 and Gemini models.
-- [x] Long memory conversation storage inside browser localStorage.
-- [x] ChatGPT-style sidebar with collapsible support, chronological grouping, search, and session pinning.
-- [x] Custom AI personas (General, Creative Writer, Code Architect, Custom) and system instructions.
-- [x] Web Search toggle (Gemini Google grounding routing) and Thinking Mode toggles.
-- [x] Client-side Base64 parsing for images and PDFs.
-- [x] Continuous voice mode overlay (STT + queue-based streaming TTS + animation states).
-- [x] Sandboxed JS/HTML execution consoles.
-- [x] Export session history to Markdown (`.md`) format.
-- [x] Clipboard image/document pasting directly in the message input field.
-- [x] Inline user message editing and prompt regeneration flows.
-- [x] Quick model selector toolbar directly below the main chat viewport.
-- [x] Custom GPT Creator & Explorer (Featured pre-built assistants + user-designed builders, customizable prompts, emojis, and themes).
-- [x] Claude-Style Popover Menu with submenus for writing styles, conversational skills, and Web Search/File tools.
-- [x] Native Canvas Screenshot Capturing tool integrated directly into the workspace.
-- [x] Context-Aware Quick Action Pills for images and document uploads.
-- [x] Global Theme Customization System supporting 5 custom presets.
-- [x] Clean, border-free layout aesthetics for the main chat interface.
-- [x] Interactive Multi-File Sandpack Sandbox drawer preloaded with Tailwind CSS.
-- [x] Background asynchronous Non-Blocking Contextual Thread Titling.
-- [x] Normalized hierarchy ingestion tagging for attached workspace references.
-- [x] Theme-Adaptive syntax highlighting variables inheriting chosen settings.
+## Features
+### Google Login
+- One-click sign in
 
-### Phase 2: User Profiles & Cloud Storage (Planned 📅)
-- [ ] Connect authentication providers.
-- [ ] Initialize cloud database structures to sync session histories across devices.
-- [ ] Support cloud attachment file uploads.
+### GitHub Login
+- Developer-friendly authentication
 
-### Phase 3: Advanced Document Intelligence (Planned 📅)
-- [ ] Multi-document summarization overlays.
-- [ ] Interactive text segment search and semantic citation mapping.
-- [ ] Image annotations editor inside the chat.
+### Magic Link
+- Passwordless authentication
+
+## Deliverables
+- User registration
+- Login
+- Logout
+- Session persistence
+- Protected routes
+
+---
+
+# Phase 2 — Chat Persistence
+
+## Goal
+Save chats permanently.
+
+## Features
+### Create Chat
+- New conversation
+
+### Rename Chat
+- Editable title
+
+### Delete Chat
+- Soft delete
+
+### Pin Chat
+- Important conversations
+
+### Auto Title Generation
+Generate title using first prompt.
+
+Example:
+```text
+Build AI startup
+```
+↓
+```text
+AI Startup Planning
+```
+
+## Sidebar Groups
+```text
+Today
+Yesterday
+Previous 7 Days
+Previous 30 Days
+```
+
+## Deliverables
+- Persistent chat history
+- Chat sidebar
+- Chat management
+
+---
+
+# Phase 3 — Projects
+
+## Goal
+Organize chats.
+
+Example:
+```text
+Startup Project
+ ├─ Marketing Chat
+ ├─ Pricing Chat
+ ├─ Investor Pitch Chat
+```
+
+## Features
+### Create Project
+### Rename Project
+### Delete Project
+### Move Chat To Project
+### Project Instructions
+
+Example:
+```text
+Company Name: AI Chat
+Target Audience: Developers
+Tone: Professional
+Industry: SaaS
+```
+Automatically added to prompts.
+
+## Deliverables
+- Project management
+- Shared project context
+
+---
+
+# Phase 4 — Memory System
+
+## Goal
+Allow AI to remember user preferences.
+
+## Manual Memory
+User saves memory.
+
+Example:
+```text
+My preferred language is Hindi.
+```
+
+## Automatic Memory
+AI detects:
+```text
+User prefers TypeScript.
+```
+and stores it.
+
+## Memory Categories
+### Personal
+```text
+Name
+Location
+Language
+```
+
+### Technical
+```text
+Framework
+Programming Language
+Database
+```
+
+### Business
+```text
+Startup
+Agency
+Product
+```
+
+## Memory Dashboard
+Users can:
+- View memory
+- Edit memory
+- Delete memory
+
+## Deliverables
+- Cross-chat memory
+
+---
+
+# Phase 5 — Custom Assistants
+
+## Goal
+Create Custom GPT-style assistants.
+
+## Examples
+### Coding Expert
+```text
+You are a senior software engineer.
+```
+
+### Startup Mentor
+```text
+You help founders build SaaS businesses.
+```
+
+### SEO Expert
+```text
+You are an SEO consultant.
+```
+
+## Assistant Configuration
+### Name
+### Icon
+### Description
+### System Prompt
+### Temperature
+
+## Deliverables
+- Unlimited custom assistants (Premium)
+
+---
+
+# Phase 6 — Search
+
+## Goal
+Search old conversations.
+
+## Search Types
+### Global Search
+```text
+pricing strategy
+supabase
+nextjs auth
+```
+
+### Filter By
+- Project
+- Date
+- Assistant
+
+## Deliverables
+- Fast conversation search
+
+---
+
+# Phase 7 — Prompt Library
+
+## Goal
+Store reusable prompts.
+
+## Categories
+### Development
+### Marketing
+### SEO
+### Writing
+### Business
+
+## Features
+### Save Prompt
+### Favorite Prompt
+### Edit Prompt
+### Delete Prompt
+### Share Prompt
+
+## Deliverables
+- Personal prompt library
+
+---
+
+# Phase 8 — Export
+
+## Formats
+### Markdown
+### TXT
+### PDF
+
+## Export Scope
+### Single Chat
+### Entire Project
+### All Conversations
+
+## Deliverables
+- Data portability
+
+---
+
+# Phase 9 — Workspace Organization
+
+## Goal
+Keep chats organized.
+
+## Folders
+Example:
+```text
+Work
+Personal
+Research
+Clients
+```
+
+## Features
+### Create Folder
+### Move Chat
+### Archive Folder
+### Delete Folder
+
+## Deliverables
+- Better organization
+
+---
+
+# Phase 10 — Usage Tracking
+
+## Track
+### Messages Used
+### Tokens Used
+### Projects Created
+### Assistants Created
+### Storage Used
+
+## Dashboard
+```text
+Messages: 1,250
+Projects: 12
+Assistants: 8
+Memory Entries: 45
+```
+
+## Deliverables
+- User analytics
+
+---
+
+# Phase 11 — Subscription System
+
+## Razorpay Integration
+
+### Free Plan
+```text
+50 Messages / Day
+3 Projects
+3 Assistants
+Basic Memory
+Limited Search
+```
+
+### Pro Plan
+```text
+Unlimited Messages
+Unlimited Projects
+Unlimited Assistants
+Advanced Memory
+Search
+Export
+Priority Access
+```
+Suggested Pricing:
+```text
+₹99/month
+```
+
+### Pro Plus
+```text
+Everything in Pro
+Future Premium Models
+Future Deep Research
+Future Voice Mode
+```
+Suggested Pricing:
+```text
+₹199/month
+```
+
+## Deliverables
+- Subscription billing
+- Plan enforcement
+
+---
+
+# Phase 12 — Settings & Personalization
+
+## User Settings
+### Theme
+- Light
+- Dark
+- System
+
+### Chat Settings
+- Temperature
+- Thinking Mode
+- Web Search
+
+### Profile Settings
+- Name
+- Avatar
+- Email
+
+## Deliverables
+- Personalized experience
+
+---
+
+# Launch MVP Checklist
+
+## Required Before Launch
+- [ ] Supabase Auth
+- [ ] Profiles Table
+- [ ] Chats Table
+- [ ] Messages Table
+- [ ] Chat Persistence
+- [ ] Projects
+- [ ] Memory
+- [ ] Custom Assistants
+- [ ] Search
+- [ ] Prompt Library
+- [ ] Export
+- [ ] Usage Tracking
+- [ ] Razorpay Subscription
+- [ ] Mobile Responsive Design
+- [ ] Dark Mode
+- [ ] Error Handling
+- [ ] Rate Limiting
+
+---
+
+# Future Features (Post Launch)
+
+## Multimodal
+- Image Upload Understanding
+- Image Generation
+- Voice Mode
+- Video Understanding
+- PDF Intelligence
+
+## Multi-Provider Support
+- OpenAI
+- Claude
+- Gemini
+
+## Deep Research
+- Web Crawling
+- Citation Generation
+- Long-form Reports
+
+## Code Interpreter
+- Python Execution
+- CSV Analysis
+- Data Visualization
+
+## Team Workspace
+- Shared Projects
+- Shared Chats
+- Team Billing
+- Admin Dashboard
+
+---
+
+# Recommended Development Order
+
+1. Supabase Auth
+2. Database Schema
+3. Chat Persistence
+4. Projects
+5. Memory
+6. Custom Assistants
+7. Search
+8. Prompt Library
+9. Export
+10. Usage Tracking
+11. Razorpay
+12. Workspace Organization
+13. Settings Page
+14. Production Deployment
+
+---
+
+# Success Criteria
+
+## MVP
+- Persistent chats
+- Projects
+- Memory
+- Assistants
+- Search
+- Premium subscriptions
+
+## V1
+- Stable paid product
+- 100+ users
+- Recurring subscriptions
+
+## V2
+- Multi-provider AI
+- Deep Research
+- Multimodal Features
+- Team Collaboration

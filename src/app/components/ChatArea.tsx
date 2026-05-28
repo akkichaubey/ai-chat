@@ -37,7 +37,9 @@ import {
   Camera,
   Languages,
   Plus,
-  Eye
+  Eye,
+  FileDown,
+  Printer
 } from 'lucide-react';
 
 interface Attachment {
@@ -98,6 +100,11 @@ interface ChatAreaProps {
   activeSkill?: string;
   onStyleChange: (styleId: string) => void;
   onSkillChange: (skillId: string) => void;
+
+  // Library prompt injection
+  injectedPrompt?: string;
+  clearInjectedPrompt?: () => void;
+  onOpenPromptLibrary?: () => void;
 }
 
 const STARTER_PROMPTS = [
@@ -278,7 +285,10 @@ export default function ChatArea({
   activeStyle = 'normal',
   activeSkill = 'default',
   onStyleChange,
-  onSkillChange
+  onSkillChange,
+  injectedPrompt,
+  clearInjectedPrompt,
+  onOpenPromptLibrary
 }: ChatAreaProps) {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -291,6 +301,16 @@ export default function ChatArea({
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
   const [sandboxFiles, setSandboxFiles] = useState<Record<string, string> | null>(null);
+
+  // Inject prompt library template when selected
+  useEffect(() => {
+    if (injectedPrompt) {
+      setInput(prev => prev ? prev + '\n' + injectedPrompt : injectedPrompt);
+      if (clearInjectedPrompt) {
+        clearInjectedPrompt();
+      }
+    }
+  }, [injectedPrompt, clearInjectedPrompt]);
 
   const AVAILABLE_MODELS = [
     { id: 'gemma-4-31b-it', name: 'Gemma 4 (31B IT)' },
@@ -315,6 +335,20 @@ export default function ChatArea({
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto'; // reset height first
+    const newHeight = Math.min(180, textarea.scrollHeight); // expand up to 180px maximum height
+    textarea.style.height = `${newHeight}px`;
+  };
+
+  // Adjust height automatically when input changes
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [input]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -544,6 +578,66 @@ export default function ChatArea({
     document.body.removeChild(link);
   };
 
+  // Export chat to Plain Text
+  const handleExportTxt = () => {
+    if (messages.length === 0) return;
+    
+    let txtContent = `Chat Session: ${activeSessionTitle}\n========================================\n\n`;
+    messages.forEach(msg => {
+      const roleName = msg.role === 'user' ? 'USER' : 'ASSISTANT';
+      txtContent += `[${roleName}]\n${msg.content}\n\n----------------------------------------\n\n`;
+    });
+
+    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    const sanitizedTitle = activeSessionTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    link.setAttribute('download', `chat_${sanitizedTitle}.txt`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Printable PDF Layout Generation
+  const handlePrintChat = () => {
+    if (messages.length === 0) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    let html = `
+      <html>
+      <head>
+        <title>Chat Session: ${activeSessionTitle}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #1e1f20; line-height: 1.6; }
+          h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 12px; font-size: 24px; font-weight: 700; color: #131314; }
+          .msg { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; }
+          .role { font-weight: bold; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; color: #666; margin-bottom: 5px; }
+          .content { font-size: 13.5px; white-space: pre-wrap; }
+        </style>
+      </head>
+      <body>
+        <h1>Chat Session: ${activeSessionTitle}</h1>
+        ${messages.map(m => `
+          <div class="msg">
+            <div class="role">${m.role}</div>
+            <div class="content">${m.content}</div>
+          </div>
+        `).join('')}
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   // Editing Message triggers
   const handleStartEdit = (id: string, currentContent: string) => {
     setEditingMessageId(id);
@@ -688,13 +782,29 @@ export default function ChatArea({
           </button>
           
           {messages.length > 0 && (
-            <button
-              onClick={handleExportChat}
-              className="p-1.5 rounded-lg text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors"
-              title="Export Conversation (.md)"
-            >
-              <Download className="w-4.5 h-4.5" />
-            </button>
+            <>
+              <button
+                onClick={handleExportChat}
+                className="p-1.5 rounded-lg text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors cursor-pointer"
+                title="Export Markdown (.md)"
+              >
+                <Download className="w-4.5 h-4.5" />
+              </button>
+              <button
+                onClick={handleExportTxt}
+                className="p-1.5 rounded-lg text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors cursor-pointer"
+                title="Export Text (.txt)"
+              >
+                <FileDown className="w-4.5 h-4.5" />
+              </button>
+              <button
+                onClick={handlePrintChat}
+                className="p-1.5 rounded-lg text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors cursor-pointer"
+                title="Print Thread / Save PDF"
+              >
+                <Printer className="w-4.5 h-4.5" />
+              </button>
+            </>
           )}
           <button
             onClick={onOpenSettings}
@@ -1044,13 +1154,14 @@ export default function ChatArea({
             />
 
             <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               placeholder={`Ask Anything`}
-              rows={Math.min(5, input.split('\n').length || 1)}
-              className="w-full bg-transparent resize-none pl-4 pr-14 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none max-h-48 scrollbar-thin font-medium font-sans"
+              rows={1}
+              className="w-full bg-transparent resize-none pl-4 pr-14 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none scrollbar-thin font-medium font-sans leading-relaxed transition-all"
             />
             
             {/* Input Toolbar */}
@@ -1113,6 +1224,21 @@ export default function ChatArea({
                               <Camera className="w-4 h-4 text-slate-400" />
                               Take a screenshot
                             </button>
+
+                            {/* Prompt Library */}
+                            {onOpenPromptLibrary && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onOpenPromptLibrary();
+                                  setShowPlusMenu(false);
+                                }}
+                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-[#2d2f31] transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
+                              >
+                                <Sparkles className="w-4 h-4 text-amber-400" />
+                                Prompt Library
+                              </button>
+                            )}
 
                             <div className="h-px bg-[#303134]/60 my-1" />
 
