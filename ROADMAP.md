@@ -172,6 +172,10 @@ const triggerStreaming = async (history: Message[]) => { ... }
 - [x] Context-Aware Quick Action Pills for images and document uploads.
 - [x] Global Theme Customization System supporting 5 custom presets.
 - [x] Clean, border-free layout aesthetics for the main chat interface.
+- [x] Interactive Multi-File Sandpack Sandbox drawer preloaded with Tailwind CSS.
+- [x] Background asynchronous Non-Blocking Contextual Thread Titling.
+- [x] Normalized hierarchy ingestion tagging for attached workspace references.
+- [x] Theme-Adaptive syntax highlighting variables inheriting chosen settings.
 
 ### Phase 2: User Profiles & Cloud Storage (Planned 📅)
 - [ ] Connect authentication providers.

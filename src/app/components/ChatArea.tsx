@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Sandpack } from '@codesandbox/sandpack-react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { 
   Send, 
   Bot, 
@@ -212,6 +214,44 @@ const getSandboxSrcDoc = (code: string, language: string) => {
   `;
 };
 
+const parseMultiFileCode = (code: string): Record<string, string> | null => {
+  const fileMarkerRegex = /(?:---\s*\n\s*File:\s*([^\n\r]+?)\s*\n\s*---|---\s*File:\s*([^\n\r-]+?)\s*---)/g;
+  const files: Record<string, string> = {};
+  
+  let match;
+  const indices: { filename: string; index: number; matchLength: number }[] = [];
+  
+  fileMarkerRegex.lastIndex = 0;
+  while ((match = fileMarkerRegex.exec(code)) !== null) {
+    const filename = (match[1] || match[2]).trim();
+    indices.push({
+      filename,
+      index: match.index + match[0].length,
+      matchLength: match[0].length
+    });
+  }
+  
+  if (indices.length === 0) {
+    return null;
+  }
+  
+  for (let i = 0; i < indices.length; i++) {
+    const current = indices[i];
+    const next = indices[i + 1];
+    const rawContent = next 
+      ? code.substring(current.index, next.index - current.matchLength)
+      : code.substring(current.index);
+      
+    let cleanFilename = current.filename.replace(/^\.\//, '').trim();
+    if (!cleanFilename.startsWith('/')) {
+      cleanFilename = '/' + cleanFilename;
+    }
+    files[cleanFilename] = rawContent.trim();
+  }
+  
+  return files;
+};
+
 export default function ChatArea({
   messages,
   isLoading,
@@ -249,6 +289,8 @@ export default function ChatArea({
   const [editInput, setEditInput] = useState('');
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [isSandboxOpen, setIsSandboxOpen] = useState(false);
+  const [sandboxFiles, setSandboxFiles] = useState<Record<string, string> | null>(null);
 
   const AVAILABLE_MODELS = [
     { id: 'gemma-4-31b-it', name: 'Gemma 4 (31B IT)' },
@@ -521,7 +563,6 @@ export default function ChatArea({
       const match = /language-(\w+)/.exec(className || '');
       const isCodeBlock = match || String(children).includes('\n');
       const [copied, setCopied] = useState(false);
-      const [showSandbox, setShowSandbox] = useState(false);
       
       const copyToClipboard = () => {
         navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
@@ -530,24 +571,50 @@ export default function ChatArea({
       };
 
       const language = match ? match[1].toLowerCase() : '';
-      const isRunnable = language === 'javascript' || language === 'js' || language === 'html';
+      const codeStr = String(children);
+      const parsedFiles = parseMultiFileCode(codeStr);
+      const isRunnable = ['javascript', 'js', 'html', 'css', 'typescript', 'ts', 'jsx', 'tsx'].includes(language) || parsedFiles !== null;
+
+      const handleRunCode = () => {
+        if (parsedFiles) {
+          setSandboxFiles(parsedFiles);
+        } else {
+          // Fallback for single file code blocks
+          if (language === 'html') {
+            setSandboxFiles({
+              '/index.html': codeStr
+            });
+          } else if (language === 'css') {
+            setSandboxFiles({
+              '/styles.css': codeStr,
+              '/index.html': `<link rel="stylesheet" href="./styles.css">\n<div class="p-4">CSS Preview</div>`
+            });
+          } else if (language === 'tsx' || language === 'jsx') {
+            setSandboxFiles({
+              '/App.tsx': codeStr
+            });
+          } else {
+            // JS/TS or fallback
+            setSandboxFiles({
+              '/index.js': codeStr
+            });
+          }
+        }
+        setIsSandboxOpen(true);
+      };
 
       return isCodeBlock ? (
         <div className="my-4 overflow-hidden rounded-xl border border-slate-800 bg-[#0b0f19] shadow-lg shadow-black/35">
           <div className="flex items-center justify-between px-4 py-2 bg-slate-900/90 border-b border-slate-800/80 text-[10px] font-mono text-slate-400">
-            <span className="uppercase tracking-wider font-semibold">{match ? match[1] : 'code'}</span>
+            <span className="uppercase tracking-wider font-semibold">{parsedFiles ? 'multi-file component' : (match ? match[1] : 'code')}</span>
             <div className="flex items-center gap-2">
               {isRunnable && (
                 <button
-                  onClick={() => setShowSandbox(!showSandbox)}
-                  className={`px-2 py-0.5 rounded transition-all font-medium flex items-center gap-1 ${
-                    showSandbox 
-                      ? 'text-[#a8c7fa] bg-[#a8c7fa]/10 border border-[#a8c7fa]/20' 
-                      : 'hover:text-slate-200 hover:bg-slate-800/60'
-                  }`}
+                  onClick={handleRunCode}
+                  className="px-2 py-0.5 rounded transition-all font-medium flex items-center gap-1 hover:text-slate-200 hover:bg-slate-800/60"
                 >
                   <Play className="w-2.5 h-2.5" />
-                  {showSandbox ? 'Stop' : 'Run Code'}
+                  Run Code
                 </button>
               )}
               <button
@@ -562,31 +629,16 @@ export default function ChatArea({
               </button>
             </div>
           </div>
-          <pre className="p-4 overflow-x-auto font-mono text-[11px] leading-relaxed text-slate-300 scrollbar-thin">
-            <code className={className} {...props}>
-              {children}
-            </code>
-          </pre>
-          {showSandbox && (
-            <div className="border-t border-slate-800 bg-[#090d16] flex flex-col">
-              <div className="flex items-center justify-between px-4 py-1.5 border-b border-slate-800/50 bg-[#131314] text-[9px] font-mono text-slate-500">
-                <span className="font-semibold text-slate-400 uppercase">Sandbox Console Output</span>
-                <button
-                  onClick={() => setShowSandbox(false)}
-                  className="hover:text-slate-300 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-              <div className="h-48 w-full p-1 bg-[#131314]">
-                <iframe
-                  sandbox="allow-scripts"
-                  srcDoc={getSandboxSrcDoc(String(children), language)}
-                  className="w-full h-full border-none bg-[#131314] rounded-lg"
-                />
-              </div>
-            </div>
-          )}
+          
+          <div className="p-4 overflow-x-auto font-mono text-[11px] leading-relaxed text-slate-300 scrollbar-thin">
+            <SyntaxHighlighter
+              language={language || 'text'}
+              useInlineStyles={false}
+              className="prism-theme-override bg-transparent! p-0!"
+            >
+              {codeStr.replace(/\n$/, '')}
+            </SyntaxHighlighter>
+          </div>
         </div>
       ) : (
         <code className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700/30 text-indigo-300 font-mono text-[11px]" {...props}>
@@ -1305,6 +1357,61 @@ export default function ChatArea({
           </div>
         </form>
       </footer>
+
+      {/* Slide-over Sandpack Drawer */}
+      {isSandboxOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsSandboxOpen(false)}
+          />
+          
+          {/* Drawer Content */}
+          <div className="relative w-full max-w-4xl h-full bg-[#1e1f20] border-l border-[#303134] shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-300">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#303134] bg-[#1a1a1a]">
+              <div className="flex items-center gap-2">
+                <Code className="w-5 h-5 text-[#a8c7fa]" />
+                <span className="font-semibold text-sm text-slate-200">Interactive Multi-File Sandbox</span>
+              </div>
+              <button
+                onClick={() => setIsSandboxOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#2d2f31] transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Sandbox Body */}
+            <div className="flex-1 overflow-y-auto p-6 bg-[#131314]">
+              {sandboxFiles && (
+                <Sandpack
+                  template={
+                    Object.keys(sandboxFiles).some(k => k.endsWith('.tsx') || k.endsWith('.ts') || k.endsWith('.jsx'))
+                      ? 'react-ts'
+                      : 'static'
+                  }
+                  theme="dark"
+                  files={sandboxFiles}
+                  options={{
+                    showNavigator: true,
+                    showTabs: true,
+                    closableTabs: false,
+                    showLineNumbers: true,
+                    editorHeight: "calc(100vh - 200px)",
+                    externalResources: [
+                      "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+                    ]
+                  }}
+                />
+              )}
+            </div>
+            
+          </div>
+        </div>
+      )}
     </div>
   );
 }

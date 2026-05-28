@@ -36,6 +36,8 @@ interface ChatSession {
   gptStarterPrompts?: string[];
   activeStyle?: string;
   activeSkill?: string;
+  thinkingEnabled?: boolean;
+  webSearchEnabled?: boolean;
 }
 
 interface Settings {
@@ -136,7 +138,9 @@ export default function Home() {
           gptDescription: s.gptDescription,
           gptStarterPrompts: s.gptStarterPrompts,
           activeStyle: s.activeStyle || 'normal',
-          activeSkill: s.activeSkill || 'default'
+          activeSkill: s.activeSkill || 'default',
+          thinkingEnabled: s.thinkingEnabled ?? false,
+          webSearchEnabled: s.webSearchEnabled ?? false
         }));
       } catch (e) {
         console.error('Failed to parse sessions', e);
@@ -176,6 +180,8 @@ export default function Home() {
         customSystemPrompt: loadedSettings.customSystemPrompt || 'You are a helpful, precise, and knowledgeable AI assistant.',
         activeStyle: 'normal',
         activeSkill: 'default',
+        thinkingEnabled: false,
+        webSearchEnabled: false,
       };
       parsedSessions = [defaultSession];
       parsedActiveId = defaultSessionId;
@@ -198,6 +204,21 @@ export default function Home() {
     }
   }, []);
 
+  // Synchronize thinkingEnabled and webSearchEnabled states when active session changes
+  useEffect(() => {
+    const activeSession = sessions.find(s => s.id === activeSessionId);
+    if (activeSession) {
+      setThinkingEnabled(prev => {
+        const next = activeSession.thinkingEnabled ?? false;
+        return prev === next ? prev : next;
+      });
+      setWebSearchEnabled(prev => {
+        const next = activeSession.webSearchEnabled ?? false;
+        return prev === next ? prev : next;
+      });
+    }
+  }, [activeSessionId, sessions]);
+
   // 2. Persists states to LocalStorage when they change
   const saveSessionsToLocalStorage = (newSessions: ChatSession[]) => {
     localStorage.setItem('gemma_chat_sessions', JSON.stringify(newSessions));
@@ -218,6 +239,8 @@ export default function Home() {
       customSystemPrompt: settings.customSystemPrompt || 'You are a helpful, precise, and knowledgeable AI assistant.',
       activeStyle: 'normal',
       activeSkill: 'default',
+      thinkingEnabled: false,
+      webSearchEnabled: false,
     };
     const updatedSessions = [newSession, ...sessions];
     const updatedMessagesMap = {
@@ -326,6 +349,37 @@ export default function Home() {
     });
   };
 
+  const handleThinkingToggle = (val: boolean) => {
+    setThinkingEnabled(val);
+    if (activeSessionId) {
+      const updatedSessions = sessions.map(s =>
+        s.id === activeSessionId ? { ...s, thinkingEnabled: val } : s
+      );
+      setSessions(updatedSessions);
+      saveSessionsToLocalStorage(updatedSessions);
+    }
+  };
+
+  const handleWebSearchToggle = (val: boolean) => {
+    setWebSearchEnabled(val);
+    if (activeSessionId) {
+      const updatedSessions = sessions.map(s =>
+        s.id === activeSessionId 
+          ? { 
+              ...s, 
+              webSearchEnabled: val, 
+              thinkingEnabled: val ? false : s.thinkingEnabled 
+            } 
+          : s
+      );
+      setSessions(updatedSessions);
+      saveSessionsToLocalStorage(updatedSessions);
+      if (val) {
+        setThinkingEnabled(false);
+      }
+    }
+  };
+
   // 9. Core Streaming Logic (shared between send, edit, and regenerate)
   const triggerStreaming = async (history: Message[]) => {
     if (!activeSessionId) return;
@@ -372,6 +426,7 @@ export default function Home() {
       if (activeSession?.activeSkill && SKILL_PROMPTS[activeSession.activeSkill]) {
         compiledSystemPrompt += SKILL_PROMPTS[activeSession.activeSkill];
       }
+      compiledSystemPrompt += "\n\n[SANDBOX PLAYGROUND INSTRUCTIONS]\nWhen writing complex, multi-file code, layouts, or components (such as React, HTML, JS, CSS, TSX), separate each file with the following partition syntax:\n---\nFile: path/to/filename.ext\n---\nCode content here\n\nExample:\n---\nFile: components/CustomButton.tsx\n---\nexport const CustomButton = () => { ... }\n\nEnsure there is at least one primary entry file, typically named 'App.tsx' for React or 'index.html' for raw web layouts.";
 
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -420,12 +475,20 @@ export default function Home() {
           const updated = prevMsgs.map((m) =>
             m.id === assistantMessageId ? { ...m, content: streamedContent } : m
           );
-          
-          const newMap = { ...prev, [activeSessionId]: updated };
-          saveMessagesToLocalStorage(newMap);
-          return newMap;
+          return { ...prev, [activeSessionId]: updated };
         });
       }
+
+      // Save to localStorage exactly once when streaming finishes successfully
+      setMessagesMap((prev) => {
+        const prevMsgs = prev[activeSessionId] || [];
+        const updated = prevMsgs.map((m) =>
+          m.id === assistantMessageId ? { ...m, content: streamedContent } : m
+        );
+        const newMap = { ...prev, [activeSessionId]: updated };
+        saveMessagesToLocalStorage(newMap);
+        return newMap;
+      });
 
       setVoiceIsFinished(true);
 
@@ -453,6 +516,54 @@ export default function Home() {
     }
   };
 
+  const generateThreadTitle = async (sessionId: string, userPrompt: string) => {
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'user',
+              content: `Analyze this user query and create an optimized 3-to-4 word title encapsulating this exact request. Return ONLY the raw string value of the title immediately with no quotation marks, no preamble, and no explanation. Query: "${userPrompt}"`
+            }
+          ],
+          model: settings.model,
+          apiKey: settings.apiKey,
+          temperature: 0.3,
+        }),
+      });
+
+      if (response.ok && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let titleText = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          titleText += decoder.decode(value, { stream: true });
+        }
+        
+        let cleanTitle = titleText.trim();
+        cleanTitle = cleanTitle.replace(/^["']|["']$/g, '').replace(/\.$/, '').trim();
+        
+        if (cleanTitle && cleanTitle.length < 50 && !cleanTitle.includes('[ERROR]')) {
+          setSessions(prevSessions => {
+            const next = prevSessions.map(s =>
+              s.id === sessionId ? { ...s, title: cleanTitle } : s
+            );
+            saveSessionsToLocalStorage(next);
+            return next;
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to generate thread title in background:", err);
+    }
+  };
+
   // Send Message
   const handleSendMessage = async (content: string, attachments: Attachment[]) => {
     if (!activeSessionId) return;
@@ -463,8 +574,13 @@ export default function Home() {
     
     if (textAttachments.length > 0) {
       if (finalContent) finalContent += '\n\n';
+      finalContent += `[CONTEXT ATTACHMENT: SOURCE CODE REFERENCES]\n`;
       textAttachments.forEach(att => {
-        finalContent += `[Attached File: ${att.name}]\n\`\`\`\n${att.textContent}\n\`\`\`\n\n`;
+        finalContent += `======================================================\n`;
+        finalContent += `FILE PATH: ${att.name}\n`;
+        finalContent += `======================================================\n`;
+        finalContent += `${att.textContent}\n`;
+        finalContent += `======================================================\n\n`;
       });
     }
 
@@ -498,6 +614,9 @@ export default function Home() {
     if (isFirstUserMessage) {
       const generatedTitle = content.length > 26 ? content.slice(0, 24) + '...' : content;
       handleRenameSession(activeSessionId, generatedTitle);
+      
+      // Asynchronously generate optimized contextual title in background without blocking
+      generateThreadTitle(activeSessionId, content);
     }
 
     await triggerStreaming(updatedMessages);
@@ -587,7 +706,9 @@ export default function Home() {
       gptDescription: gpt.description,
       gptStarterPrompts: gpt.starterPrompts,
       activeStyle: 'normal',
-      activeSkill: 'default'
+      activeSkill: 'default',
+      thinkingEnabled: false,
+      webSearchEnabled: false
     };
 
     const updatedSessions = [newSession, ...sessions];
@@ -683,9 +804,9 @@ export default function Home() {
         activeModelName={activeModelFriendlyName}
         onOpenSettings={() => setIsSettingsOpen(true)}
         thinkingEnabled={thinkingEnabled}
-        setThinkingEnabled={setThinkingEnabled}
+        setThinkingEnabled={handleThinkingToggle}
         webSearchEnabled={webSearchEnabled}
-        setWebSearchEnabled={setWebSearchEnabled}
+        setWebSearchEnabled={handleWebSearchToggle}
         onEditMessage={handleEditMessage}
         onRegenerateMessage={handleRegenerateMessage}
         activeSessionTitle={activeSessionTitle}
