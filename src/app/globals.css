@@ -29,6 +29,188 @@
   --token-boolean: #f28b82;
 }
 
+/* Light Mode — applied via .light-mode on <html> */
+.light-mode {
+  --background: #f8f9fa;
+  --foreground: #1f2937;
+  --card: #ffffff;
+  --card-foreground: #1f2937;
+  --popover: #ffffff;
+  --popover-foreground: #1f2937;
+  --primary: #1a73e8;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f3f4;
+  --secondary-foreground: #1f2937;
+  --muted: #f1f3f4;
+  --muted-foreground: #5f6368;
+  --accent: #e8f0fe;
+  --accent-foreground: #1a73e8;
+  --destructive: #d93025;
+  --destructive-foreground: #ffffff;
+  --border: #dadce0;
+  --input: #ffffff;
+  --ring: #1a73e8;
+  --token-comment: #80868b;
+  --token-keyword: #1a73e8;
+  --token-string: #137333;
+  --token-function: #0d652d;
+  --token-operator: #1f2937;
+  --token-number: #e37400;
+  --token-boolean: #d93025;
+}
+
+.light-mode body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+/* Override hardcoded dark hex values in light mode */
+.light-mode .bg-\[\#131314\] { background-color: var(--background) !important; }
+.light-mode .bg-\[\#1e1f20\] { background-color: var(--card) !important; }
+.light-mode .bg-\[\#2d2f31\] { background-color: var(--secondary) !important; }
+.light-mode .bg-\[\#303134\] { background-color: #dadce0 !important; }
+.light-mode .border-\[\#303134\] { border-color: var(--border) !important; }
+.light-mode .text-slate-100 { color: #111827 !important; }
+.light-mode .text-slate-200 { color: #1f2937 !important; }
+.light-mode .text-slate-300 { color: #374151 !important; }
+.light-mode .text-slate-400 { color: #4b5563 !important; }
+.light-mode .text-slate-500 { color: #6b7280 !important; }
+.light-mode .text-\[\#e3e3e3\] { color: #1f2937 !important; }
+.light-mode .text-\[\#c4c7c5\] { color: #4b5563 !important; }
+.light-mode .bg-\[\#090d16\] { background-color: #f0f4ff !important; }
+
+/* ChatGPT style dark colors mapping in light mode */
+.light-mode .bg-\[\#171717\] { background-color: var(--secondary) !important; }
+.light-mode .bg-\[\#212121\] { background-color: var(--card) !important; }
+.light-mode .bg-\[\#212121\]\/40 { background-color: rgba(0, 0, 0, 0.05) !important; }
+.light-mode .bg-\[\#212121\]\/60 { background-color: rgba(0, 0, 0, 0.08) !important; }
+.light-mode .bg-\[\#212121\]\/30 { background-color: rgba(0, 0, 0, 0.04) !important; }
+.light-mode .bg-\[\#212121\]\/10 { background-color: rgba(0, 0, 0, 0.02) !important; }
+.light-mode .bg-\[\#0d0d0d\] { background-color: var(--background) !important; }
+.light-mode .bg-\[\#0b0f19\] { background-color: var(--secondary) !important; }
+.light-mode .text-\[\#ececf1\] { color: #111827 !important; }
+.light-mode .text-\[\#b4b4b4\] { color: #4b5563 !important; }
+.light-mode .text-\[\#ececf1\]:hover { color: #000000 !important; }
+.light-mode .border-neutral-800\/40 { border-color: rgba(0, 0, 0, 0.1) !important; }
+.light-mode .border-neutral-800\/60 { border-color: rgba(0, 0, 0, 0.15) !important; }
+.light-mode .border-neutral-700 { border-color: var(--border) !important; }
+.light-mode .bg-neutral-800 { background-color: var(--secondary) !important; }
+.light-mode .hover\:bg-neutral-700:hover { background-color: var(--border) !important; }
+.light-mode .text-neutral-500 { color: #6b7280 !important; }
+
+/* Main Chat Area Header & Footer Overrides in Light Mode */
+.light-mode .bg-\[\#131314\]\/90 { background-color: rgba(248, 249, 250, 0.9) !important; border-bottom: 1px solid var(--border) !important; }
+.light-mode .bg-\[\#131314\]\/80 { background-color: rgba(248, 249, 250, 0.8) !important; }
+.light-mode .bg-\[\#2d2f31\]\/80 { background-color: rgba(0, 0, 0, 0.04) !important; }
+.light-mode .bg-\[\#2d2f31\]\/60 { background-color: rgba(0, 0, 0, 0.03) !important; }
+
+/* Custom narrow sidebar icon strip contrast matching ChatGPT/Linear styles */
+.light-mode .w-\[68px\].bg-\[\#171717\] { background-color: #e8eaed !important; border-right: 1px solid var(--border) !important; }
+
+/* Double-coverage with Tailwind arbitrary alpha color overrides for modals and grids */
+.light-mode .bg-\[\#131314\]\/30 { background-color: var(--secondary) !important; }
+.light-mode .bg-\[\#1a1b1c\]\/80 { background-color: var(--card) !important; }
+.light-mode .border-\[\#303134\]\/70 { border-color: var(--border) !important; }
+
+/* Clean Semantic Custom Classes for Sidebar in Light Mode */
+.light-mode .sidebar-container { background-color: var(--secondary) !important; border-right: 1px solid var(--border) !important; }
+.light-mode .sidebar-narrow-strip { background-color: #e8eaed !important; border-right: 1px solid var(--border) !important; }
+.light-mode .sidebar-footer-row { background-color: var(--secondary) !important; border-top: 1px solid var(--border) !important; }
+
+/* Prompt Library Modal Cards in Light Mode (fixes unreadable dark cards) */
+.light-mode .prompt-library-card { background-color: var(--card) !important; border: 1px solid var(--border) !important; }
+.light-mode .prompt-library-card p { color: var(--foreground) !important; }
+.light-mode .prompt-library-card span.text-slate-200 { color: var(--foreground) !important; }
+
+/* Settings Modal Tab Bar in Light Mode (fixes mismatched dark gray tab bar) */
+.light-mode .settings-tab-bar { background-color: var(--secondary) !important; border-bottom: 1px solid var(--border) !important; }
+.light-mode .settings-tab-bar button { color: var(--muted-foreground) !important; }
+.light-mode .settings-tab-bar button.text-\[\#a8c7fa\] { color: var(--primary) !important; border-bottom-color: var(--primary) !important; }
+
+/* Override hardcoded dark hex values in other premium color themes */
+.theme-claude .bg-\[\#131314\],
+.theme-midnight .bg-\[\#131314\],
+.theme-cyberpunk .bg-\[\#131314\],
+.theme-forest .bg-\[\#131314\] {
+  background-color: var(--background) !important;
+}
+
+.theme-claude .bg-\[\#1e1f20\],
+.theme-midnight .bg-\[\#1e1f20\],
+.theme-cyberpunk .bg-\[\#1e1f20\],
+.theme-forest .bg-\[\#1e1f20\] {
+  background-color: var(--card) !important;
+}
+
+.theme-claude .bg-\[\#2d2f31\],
+.theme-midnight .bg-\[\#2d2f31\],
+.theme-cyberpunk .bg-\[\#2d2f31\],
+.theme-forest .bg-\[\#2d2f31\] {
+  background-color: var(--secondary) !important;
+}
+
+.theme-claude .bg-\[\#171717\],
+.theme-midnight .bg-\[\#171717\],
+.theme-cyberpunk .bg-\[\#171717\],
+.theme-forest .bg-\[\#171717\] {
+  background-color: var(--background) !important;
+}
+
+.theme-claude .bg-\[\#212121\],
+.theme-midnight .bg-\[\#212121\],
+.theme-cyberpunk .bg-\[\#212121\],
+.theme-forest .bg-\[\#212121\] {
+  background-color: var(--card) !important;
+}
+
+.theme-claude .bg-\[\#0d0d0d\],
+.theme-midnight .bg-\[\#0d0d0d\],
+.theme-cyberpunk .bg-\[\#0d0d0d\],
+.theme-forest .bg-\[\#0d0d0d\] {
+  background-color: var(--background) !important;
+}
+
+.theme-claude .border-\[\#303134\],
+.theme-midnight .border-\[\#303134\],
+.theme-cyberpunk .border-\[\#303134\],
+.theme-forest .border-\[\#303134\] {
+  border-color: var(--border) !important;
+}
+
+.theme-claude .text-slate-100,
+.theme-midnight .text-slate-100,
+.theme-cyberpunk .text-slate-100,
+.theme-forest .text-slate-100,
+.theme-claude .text-slate-200,
+.theme-midnight .text-slate-200,
+.theme-cyberpunk .text-slate-200,
+.theme-forest .text-slate-200,
+.theme-claude .text-\[\#e3e3e3\],
+.theme-midnight .text-\[\#e3e3e3\],
+.theme-cyberpunk .text-\[\#e3e3e3\],
+.theme-forest .text-\[\#e3e3e3\] {
+  color: var(--foreground) !important;
+}
+
+.theme-claude .text-slate-300,
+.theme-midnight .text-slate-300,
+.theme-cyberpunk .text-slate-300,
+.theme-forest .text-slate-300,
+.theme-claude .text-slate-400,
+.theme-midnight .text-slate-400,
+.theme-cyberpunk .text-slate-400,
+.theme-forest .text-slate-400,
+.theme-claude .text-slate-500,
+.theme-midnight .text-slate-500,
+.theme-cyberpunk .text-slate-500,
+.theme-forest .text-slate-500,
+.theme-claude .text-\[\#c4c7c5\],
+.theme-midnight .text-\[\#c4c7c5\],
+.theme-cyberpunk .text-\[\#c4c7c5\],
+.theme-forest .text-\[\#c4c7c5\] {
+  color: var(--muted-foreground) !important;
+}
+
+
 /* Claude Charcoal Theme */
 .theme-claude {
   --background: #191919;

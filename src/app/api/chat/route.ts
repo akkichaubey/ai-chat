@@ -25,31 +25,171 @@ interface ContentPartInline {
 
 type ContentPart = ContentPartText | ContentPartInline;
 
+async function streamOpenAICompatible(
+  endpoint: string,
+  apiKey: string,
+  model: string,
+  messages: MessageItem[],
+  temperature: number | undefined,
+  systemPrompt: string | undefined
+): Promise<Response> {
+  const body: Record<string, unknown> = {
+    model,
+    messages: [
+      ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+      ...messages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
+    ],
+    stream: true,
+    temperature: temperature ?? 1.0
+  };
+
+  const resp = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`${endpoint} error ${resp.status}: ${errText}`);
+  }
+
+  const reader = resp.body!.getReader();
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === 'data: [DONE]') continue;
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const json = JSON.parse(trimmed.slice(6));
+              const text = json.choices?.[0]?.delta?.content;
+              if (text) controller.enqueue(encoder.encode(text));
+            } catch {}
+          }
+        }
+      }
+      controller.close();
+    }
+  });
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' }
+  });
+}
+
+async function streamAnthropic(
+  apiKey: string,
+  model: string,
+  messages: MessageItem[],
+  temperature: number | undefined,
+  systemPrompt: string | undefined
+): Promise<Response> {
+  const body: Record<string, unknown> = {
+    model,
+    max_tokens: 8096,
+    stream: true,
+    temperature: temperature ?? 1.0,
+    messages: messages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
+  };
+  if (systemPrompt) body.system = systemPrompt;
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Anthropic error ${resp.status}: ${errText}`);
+  }
+
+  const reader = resp.body!.getReader();
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('event:')) continue;
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const json = JSON.parse(trimmed.slice(6));
+              if (json.type === 'content_block_delta') {
+                const text = json.delta?.text;
+                if (text) controller.enqueue(encoder.encode(text));
+              }
+            } catch {}
+          }
+        }
+      }
+      controller.close();
+    }
+  });
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' }
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { 
-      messages, 
-      model, 
-      apiKey: clientApiKey, 
+    const {
+      messages,
+      model,
+      apiKey: clientApiKey,
       temperature,
       systemPrompt,
       thinkingEnabled,
-      webSearchEnabled
+      webSearchEnabled,
+      provider = 'gemini'
     } = await request.json();
-    
+
     // API key precedence:
     // 1. Client-supplied API key from headers/settings
     // 2. Server-side environment variable GEMINI_API_KEY
     const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
-    
+
     if (!apiKey) {
       return new Response(
         JSON.stringify({ error: 'API key is missing. Please set it in the Settings panel.' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
-    
-    const ai = new GoogleGenAI({ apiKey });
+
+    if (provider === 'openai') {
+      return streamOpenAICompatible('https://api.openai.com/v1/chat/completions', apiKey, model, messages, temperature, systemPrompt);
+    }
+    if (provider === 'openrouter') {
+      return streamOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', apiKey, model, messages, temperature, systemPrompt);
+    }
+    if (provider === 'groq') {
+      return streamOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', apiKey, model, messages, temperature, systemPrompt);
+    }
+    if (provider === 'anthropic') {
+      return streamAnthropic(apiKey, model, messages, temperature, systemPrompt);
+    }
+
+    let ai = new GoogleGenAI({ apiKey });
     
     // Format the messages for the Google GenAI SDK (maps 'assistant' -> 'model')
     // Supports inlineData for image and PDF attachments
@@ -92,6 +232,15 @@ export async function POST(request: NextRequest) {
     }
     
     let activeModel = model;
+    if (activeModel === 'gemma-4-31b-it') {
+      activeModel = 'gemini-2.5-flash';
+    } else if (activeModel === 'gemma-2-27b-it') {
+      activeModel = 'gemma2-27b-it';
+    } else if (activeModel === 'gemma-2-9b-it') {
+      activeModel = 'gemma2-9b-it';
+    } else if (activeModel === 'gemma-2-2b-it') {
+      activeModel = 'gemma2-2b-it';
+    }
     
     // Web Search Override
     if (webSearchEnabled) {
@@ -134,6 +283,34 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         const err = error as { status?: number; message?: string };
         const errorMsg = String(err.message || '');
+        
+        // Automatic authentication error detection & server-side key fallback
+        const isAuthError = 
+          err.status === 401 ||
+          err.status === 400 ||
+          errorMsg.includes('401') ||
+          errorMsg.includes('400') ||
+          errorMsg.toLowerCase().includes('api key') ||
+          errorMsg.toLowerCase().includes('key expired') ||
+          errorMsg.toLowerCase().includes('authentication') ||
+          errorMsg.toLowerCase().includes('unauthenticated') ||
+          errorMsg.toLowerCase().includes('invalid');
+
+        if (isAuthError && clientApiKey && process.env.GEMINI_API_KEY && clientApiKey !== process.env.GEMINI_API_KEY) {
+          console.warn("[API KEY FALLBACK] Client-supplied key failed authentication. Retrying with server environment GEMINI_API_KEY...");
+          ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          try {
+            responseStream = await ai.models.generateContentStream({
+              model: activeModel,
+              contents: formattedContents,
+              config: config as Parameters<InstanceType<typeof GoogleGenAI>['models']['generateContentStream']>[0]['config']
+            });
+            break;
+          } catch (retryErr) {
+            throw retryErr;
+          }
+        }
+
         const isTransientError =
           err.status === 500 ||
           err.status === 503 ||

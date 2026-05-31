@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Search, Sparkles, Code, PenTool, BarChart, Heart, Plus, Trash, Check } from 'lucide-react';
+import { X, Search, Sparkles, Code, PenTool, BarChart, Heart, Plus, Trash, Check, Edit2, Globe, Briefcase } from 'lucide-react';
 
 export interface SavedPrompt {
   id: string;
   title: string;
   content: string;
-  category: 'general' | 'developer' | 'writing' | 'marketing' | 'favorites';
+  category: 'general' | 'developer' | 'writing' | 'marketing' | 'favorites' | 'seo' | 'business';
   isCustom?: boolean;
 }
 
@@ -47,6 +47,30 @@ const PREMADE_PROMPTS: SavedPrompt[] = [
     title: 'Customer Interview Script',
     content: 'Create a list of 10 open-ended user interview questions designed to validate customer pain points around developer workspace efficiency and subscription costs.',
     category: 'marketing'
+  },
+  {
+    id: 'p7',
+    title: 'SEO Meta Tags Generator',
+    content: 'Generate optimized SEO meta title, description, and Open Graph tags for the following webpage content. Ensure the title is under 60 chars and description under 160 chars.',
+    category: 'seo'
+  },
+  {
+    id: 'p8',
+    title: 'Keyword Cluster Builder',
+    content: 'Build a comprehensive keyword cluster for the topic below. Group keywords by search intent (informational, navigational, transactional) and provide estimated search volume indicators.',
+    category: 'seo'
+  },
+  {
+    id: 'p9',
+    title: 'Business Plan Outline',
+    content: 'Create a detailed business plan outline for the following startup idea. Include: Executive Summary, Market Analysis, Competitive Landscape, Revenue Model, Go-to-Market Strategy, and Financial Projections.',
+    category: 'business'
+  },
+  {
+    id: 'p10',
+    title: 'SWOT Analysis Generator',
+    content: 'Perform a comprehensive SWOT analysis (Strengths, Weaknesses, Opportunities, Threats) for the following business or product idea. Present results in a clean markdown table.',
+    category: 'business'
   }
 ];
 
@@ -61,7 +85,7 @@ export default function PromptLibraryModal({
   onClose,
   onSelectPrompt,
 }: PromptLibraryModalProps) {
-  const [activeTab, setActiveTab] = useState<'all' | 'developer' | 'writing' | 'marketing' | 'custom' | 'favorites'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'developer' | 'writing' | 'marketing' | 'seo' | 'business' | 'custom' | 'favorites'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   
   // Custom & Favorites State loaded from localStorage
@@ -72,8 +96,13 @@ export default function PromptLibraryModal({
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
-  const [newCategory, setNewCategory] = useState<'developer' | 'writing' | 'marketing' | 'general'>('general');
+  const [newCategory, setNewCategory] = useState<'developer' | 'writing' | 'marketing' | 'general' | 'seo' | 'business'>('general');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Edit custom prompt state
+  const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -134,10 +163,26 @@ export default function PromptLibraryModal({
   const handleDeleteCustomPrompt = (id: string) => {
     const updated = customPrompts.filter(p => p.id !== id);
     saveCustomPromptsToStorage(updated);
-    // Remove from favorites if was favorited
     if (favoriteIds.includes(id)) {
       saveFavoritesToStorage(favoriteIds.filter(fId => fId !== id));
     }
+  };
+
+  const handleStartEditPrompt = (prompt: SavedPrompt) => {
+    setEditingPromptId(prompt.id);
+    setEditTitle(prompt.title);
+    setEditContent(prompt.content);
+  };
+
+  const handleSaveEditPrompt = () => {
+    if (!editTitle.trim() || !editContent.trim()) return;
+    const updated = customPrompts.map(p =>
+      p.id === editingPromptId ? { ...p, title: editTitle.trim(), content: editContent.trim() } : p
+    );
+    saveCustomPromptsToStorage(updated);
+    setEditingPromptId(null);
+    setEditTitle('');
+    setEditContent('');
   };
 
   // Compile prompt list
@@ -215,13 +260,15 @@ export default function PromptLibraryModal({
               />
               <select
                 value={newCategory}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewCategory(e.target.value as 'developer' | 'writing' | 'marketing' | 'general')}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewCategory(e.target.value as 'developer' | 'writing' | 'marketing' | 'general' | 'seo' | 'business')}
                 className="w-full bg-[#1e1f20] border border-[#303134] rounded-xl py-2 px-3 text-xs text-slate-400 focus:outline-none focus:border-[#a8c7fa]"
               >
                 <option value="general">General Category</option>
                 <option value="developer">Developer</option>
                 <option value="writing">Writing & Copy</option>
                 <option value="marketing">Marketing</option>
+                <option value="seo">SEO</option>
+                <option value="business">Business</option>
               </select>
             </div>
             <textarea
@@ -257,6 +304,8 @@ export default function PromptLibraryModal({
             { id: 'developer', label: 'Developer', Icon: Code },
             { id: 'writing', label: 'Writing', Icon: PenTool },
             { id: 'marketing', label: 'Marketing', Icon: BarChart },
+            { id: 'seo', label: 'SEO', Icon: Globe },
+            { id: 'business', label: 'Business', Icon: Briefcase },
             { id: 'custom', label: 'My Custom', Icon: Plus },
             { id: 'favorites', label: 'Favorites', Icon: Heart }
           ].map(tab => {
@@ -265,7 +314,7 @@ export default function PromptLibraryModal({
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as 'all' | 'developer' | 'writing' | 'marketing' | 'custom' | 'favorites')}
+                onClick={() => setActiveTab(tab.id as 'all' | 'developer' | 'writing' | 'marketing' | 'seo' | 'business' | 'custom' | 'favorites')}
                 className={`py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer whitespace-nowrap ${
                   active 
                     ? 'bg-[#2d2f31] border-[#a8c7fa]/40 text-[#a8c7fa]' 
@@ -293,62 +342,108 @@ export default function PromptLibraryModal({
               return (
                 <div 
                   key={prompt.id}
-                  className="p-4 bg-[#1a1b1c]/80 border border-[#303134]/70 hover:border-neutral-700/80 rounded-2xl space-y-3 transition-all hover:scale-[1.002] shadow-sm relative group"
+                  className="p-4 bg-[#1a1b1c]/80 border border-[#303134]/70 hover:border-neutral-700/80 rounded-2xl space-y-3 transition-all hover:scale-[1.002] shadow-sm relative group prompt-library-card"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-200">{prompt.title}</span>
-                      <span className="text-[9px] px-2 py-0.5 rounded bg-neutral-800 text-slate-500 uppercase tracking-widest font-bold">
-                        {prompt.category}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {/* Favorite Button */}
-                      <button
-                        onClick={() => toggleFavorite(prompt.id)}
-                        className={`p-1.5 rounded-lg border border-[#303134] hover:bg-neutral-800 transition-colors ${
-                          isFavorited ? 'text-[#ff007f]' : 'text-slate-500 hover:text-slate-300'
-                        }`}
-                        title="Favorite prompt"
-                      >
-                        <Heart className="w-3.5 h-3.5 fill-current" />
-                      </button>
-                      
-                      {/* Copy Prompt */}
-                      <button
-                        onClick={() => handleCopyPrompt(prompt)}
-                        className="p-1.5 rounded-lg border border-[#303134] hover:bg-neutral-800 text-slate-400 hover:text-slate-200 transition-colors"
-                        title="Copy to clipboard"
-                      >
-                        {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-450" /> : <Code className="w-3.5 h-3.5" />}
-                      </button>
-                      
-                      {/* Delete Custom Prompt */}
-                      {prompt.isCustom && (
+                  {editingPromptId === prompt.id ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="w-full bg-[#131314] border border-[#303134] rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-[#a8c7fa]"
+                      />
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        rows={3}
+                        className="w-full bg-[#131314] border border-[#303134] rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-[#a8c7fa] resize-none"
+                      />
+                      <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => handleDeleteCustomPrompt(prompt.id)}
-                          className="p-1.5 rounded-lg border border-[#303134] hover:bg-rose-950/20 text-slate-500 hover:text-rose-400 transition-colors"
-                          title="Delete prompt template"
+                          type="button"
+                          onClick={() => setEditingPromptId(null)}
+                          className="py-1 px-3 text-xs border border-[#303134] text-slate-400 rounded-lg hover:bg-neutral-800"
                         >
-                          <Trash className="w-3.5 h-3.5" />
+                          Cancel
                         </button>
-                      )}
+                        <button
+                          type="button"
+                          onClick={handleSaveEditPrompt}
+                          className="py-1 px-3 text-xs bg-[#a8c7fa] text-[#131314] font-semibold rounded-lg hover:bg-[#c2e7ff]"
+                        >
+                          Save
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-200">{prompt.title}</span>
+                          <span className="text-[9px] px-2 py-0.5 rounded bg-neutral-800 text-slate-500 uppercase tracking-widest font-bold">
+                            {prompt.category}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {/* Favorite Button */}
+                          <button
+                            onClick={() => toggleFavorite(prompt.id)}
+                            className={`p-1.5 rounded-lg border border-[#303134] hover:bg-neutral-800 transition-colors ${
+                              isFavorited ? 'text-[#ff007f]' : 'text-slate-500 hover:text-slate-300'
+                            }`}
+                            title="Favorite prompt"
+                          >
+                            <Heart className="w-3.5 h-3.5 fill-current" />
+                          </button>
+                          
+                          {/* Copy Prompt */}
+                          <button
+                            onClick={() => handleCopyPrompt(prompt)}
+                            className="p-1.5 rounded-lg border border-[#303134] hover:bg-neutral-800 text-slate-400 hover:text-slate-200 transition-colors"
+                            title="Copy to clipboard"
+                          >
+                            {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-450" /> : <Code className="w-3.5 h-3.5" />}
+                          </button>
+                          
+                          {/* Edit Custom Prompt */}
+                          {prompt.isCustom && (
+                            <button
+                              onClick={() => handleStartEditPrompt(prompt)}
+                              className="p-1.5 rounded-lg border border-[#303134] hover:bg-neutral-800 text-slate-500 hover:text-[#a8c7fa] transition-colors"
+                              title="Edit prompt template"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
 
-                  <p className="text-xs text-slate-400 font-sans leading-relaxed">
-                    {prompt.content}
-                  </p>
+                          {/* Delete Custom Prompt */}
+                          {prompt.isCustom && (
+                            <button
+                              onClick={() => handleDeleteCustomPrompt(prompt.id)}
+                              className="p-1.5 rounded-lg border border-[#303134] hover:bg-rose-950/20 text-slate-500 hover:text-rose-400 transition-colors"
+                              title="Delete prompt template"
+                            >
+                              <Trash className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
 
-                  <button
-                    onClick={() => {
-                      onSelectPrompt(prompt.content);
-                      onClose();
-                    }}
-                    className="w-full py-2 bg-[#2d2f31] hover:bg-[#a8c7fa] text-slate-300 hover:text-[#131314] font-semibold text-[11px] rounded-xl transition-all flex items-center justify-center gap-1"
-                  >
-                    Inject into Active Chat Input Box
-                  </button>
+                      <p className="text-xs text-slate-400 font-sans leading-relaxed">
+                        {prompt.content}
+                      </p>
+
+                      <button
+                        onClick={() => {
+                          onSelectPrompt(prompt.content);
+                          onClose();
+                        }}
+                        className="w-full py-2 bg-[#2d2f31] hover:bg-[#a8c7fa] text-slate-300 hover:text-[#131314] font-semibold text-[11px] rounded-xl transition-all flex items-center justify-center gap-1"
+                      >
+                        Inject into Active Chat Input Box
+                      </button>
+                    </>
+                  )}
                 </div>
               );
             })

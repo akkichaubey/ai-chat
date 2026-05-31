@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gemma AI - Workspace & Productivity Dashboard",
-  description: "Advanced productivity assistant and real-time conversation partner powered by Google Gemma 4 and Gemini reasoning models.",
+  title: "AI Chat - Real-Time Voice & Chat Workspace",
+  description: "Real-time Gemini voice and chat workspace powered by AI Chat.",
 };
 
 export default function RootLayout({

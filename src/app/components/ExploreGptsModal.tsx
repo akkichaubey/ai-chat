@@ -11,6 +11,7 @@ export interface CustomGpt {
   avatarEmoji: string;
   avatarBg: string;
   starterPrompts: string[];
+  temperature: number;
 }
 
 interface ExploreGptsModalProps {
@@ -34,7 +35,8 @@ const FEATURED_GPTS: CustomGpt[] = [
       'Write a React custom hook for debouncing state changes.',
       'Explain the difference between SQL and NoSQL database modeling.',
       'How do I implement JSON Web Token (JWT) auth securely in Next.js?'
-    ]
+    ],
+    temperature: 1.0
   },
   {
     id: 'system-creative-copy',
@@ -47,7 +49,8 @@ const FEATURED_GPTS: CustomGpt[] = [
       'Draft a launch email for a new AI-powered chat dashboard.',
       'Brainstorm 5 engaging YouTube video titles about learning programming.',
       'Help me rewrite this boring landing page header to increase conversions.'
-    ]
+    ],
+    temperature: 1.0
   },
   {
     id: 'system-product-strat',
@@ -60,7 +63,8 @@ const FEATURED_GPTS: CustomGpt[] = [
       'Outline a user registration onboarding flow for a mobile fitness app.',
       'How should I structure a 10-slide startup pitch deck for seed funding?',
       'Suggest key UX improvements for a complicated e-commerce checkout page.'
-    ]
+    ],
+    temperature: 1.0
   },
   {
     id: 'system-academic-coach',
@@ -73,7 +77,8 @@ const FEATURED_GPTS: CustomGpt[] = [
       'Explain the concept of quantum superposition using a simple coin analogy.',
       'Help me solve this chemistry equation: balance the photosynthesis formula.',
       'Explain the historical significance and impact of the printing press.'
-    ]
+    ],
+    temperature: 1.0
   }
 ];
 
@@ -109,6 +114,7 @@ export default function ExploreGptsModal({
   const [avatarEmoji, setAvatarEmoji] = useState('🤖');
   const [avatarBg, setAvatarBg] = useState(GRADIENT_THEMES[0].class);
   const [starters, setStarters] = useState<string[]>(['', '', '']);
+  const [gptTemperature, setGptTemperature] = useState(1.0);
   const [error, setError] = useState('');
 
   const resetEditor = () => {
@@ -119,6 +125,7 @@ export default function ExploreGptsModal({
     setAvatarEmoji('🤖');
     setAvatarBg(GRADIENT_THEMES[0].class);
     setStarters(['', '', '']);
+    setGptTemperature(1.0);
     setError('');
   };
 
@@ -156,6 +163,7 @@ export default function ExploreGptsModal({
       loadedStarters.push('');
     }
     setStarters(loadedStarters.slice(0, 3));
+    setGptTemperature(gpt.temperature ?? 1.0);
     setError('');
     setView('editor');
   };
@@ -184,7 +192,8 @@ export default function ExploreGptsModal({
       systemInstruction: systemInstruction.trim(),
       avatarEmoji,
       avatarBg,
-      starterPrompts: filteredStarters
+      starterPrompts: filteredStarters,
+      temperature: gptTemperature
     };
 
     onSaveGpt(savedGpt);
@@ -452,6 +461,18 @@ export default function ExploreGptsModal({
                   rows={4}
                   className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-xl py-2.5 px-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa] transition-colors resize-none leading-relaxed scrollbar-thin"
                 />
+              </div>
+
+              {/* Temperature Slider */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Temperature (Creativity)</label>
+                  <span className="text-[10px] font-mono text-[#a8c7fa] bg-[#131314] px-1.5 py-0.5 rounded border border-[#303134]">{gptTemperature.toFixed(1)}</span>
+                </div>
+                <input type="range" min="0" max="2" step="0.1" value={gptTemperature} onChange={(e) => setGptTemperature(parseFloat(e.target.value))} className="w-full h-1 bg-[#2d2f31] rounded-lg appearance-none cursor-pointer accent-[#a8c7fa]" />
+                <div className="flex justify-between text-[9px] text-slate-600">
+                  <span>Precise (0)</span><span>Balanced (1)</span><span>Creative (2)</span>
+                </div>
               </div>
 
               {/* Conversation Starters */}

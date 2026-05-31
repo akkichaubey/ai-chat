@@ -7,6 +7,7 @@ import { Sandpack } from '@codesandbox/sandpack-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { 
   Send, 
+  Square,
   Bot, 
   User, 
   Sparkles, 
@@ -38,7 +39,14 @@ import {
   Plus,
   Eye,
   FileDown,
-  Printer
+  Printer,
+  Copy,
+  Trash,
+  Key,
+  AlertTriangle,
+  AlertCircle,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 
 interface SpeechRecognitionEvent {
@@ -100,12 +108,15 @@ interface ChatAreaProps {
   // Editing and Regenerating
   onEditMessage: (messageId: string, newContent: string) => void;
   onRegenerateMessage: (messageId: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
 
   // Session Title
   activeSessionTitle: string;
 
   // Voice mode
   onOpenVoiceMode: () => void;
+
+
 
   // Model switching from input toolbar
   selectedModel: string;
@@ -132,6 +143,8 @@ interface ChatAreaProps {
   injectedPrompt?: string;
   clearInjectedPrompt?: () => void;
   onOpenPromptLibrary?: () => void;
+  // Stop generation
+  onStopGeneration?: () => void;
 }
 
 const STARTER_PROMPTS = [
@@ -209,6 +222,7 @@ export default function ChatArea({
   setWebSearchEnabled,
   onEditMessage,
   onRegenerateMessage,
+  onDeleteMessage,
   activeSessionTitle,
   onOpenVoiceMode,
   selectedModel,
@@ -226,7 +240,8 @@ export default function ChatArea({
   onSkillChange,
   injectedPrompt,
   clearInjectedPrompt,
-  onOpenPromptLibrary
+  onOpenPromptLibrary,
+  onStopGeneration
 }: ChatAreaProps) {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -239,6 +254,75 @@ export default function ChatArea({
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
   const [sandboxFiles, setSandboxFiles] = useState<Record<string, string> | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+
+  // Stop any active text-to-speech when component unmounts
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const handleCopyMessage = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedMessageId(id);
+    setTimeout(() => setCopiedMessageId(null), 2000);
+  };
+
+  const handleToggleSpeak = (messageId: string, text: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      alert("Text-to-speech is not supported in this browser.");
+      return;
+    }
+
+    if (speakingMessageId === messageId) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageId(null);
+      return;
+    }
+
+    // Stop previous narration
+    window.speechSynthesis.cancel();
+
+    // Clean up Markdown and partition markers from the text for fluid speech
+    const cleanText = text
+      .replace(/\[ERROR\]/g, 'Error.')
+      .replace(/---\s*File:\s*[^\s\-]+\s*---/g, '') // remove sandbox file headers
+      .replace(/[\#\*\_`~>\-]/g, ' ') // remove markdown symbols
+      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // link text fallback
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleanText) return;
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+
+    // Auto-detect Hindi characters for native pronunciation
+    const hasHindi = /[\u0900-\u097F]/.test(cleanText);
+    const voices = window.speechSynthesis.getVoices();
+    if (hasHindi) {
+      const hiVoice = voices.find(v => v.lang.startsWith('hi'));
+      if (hiVoice) utterance.voice = hiVoice;
+    } else {
+      const enVoice = voices.find(v => v.lang.startsWith('en'));
+      if (enVoice) utterance.voice = enVoice;
+    }
+
+    utterance.onend = () => {
+      setSpeakingMessageId(null);
+    };
+
+    utterance.onerror = () => {
+      setSpeakingMessageId(null);
+    };
+
+    setSpeakingMessageId(messageId);
+    window.speechSynthesis.speak(utterance);
+  };
 
   // Inject prompt library template when selected
   useEffect(() => {
@@ -312,6 +396,28 @@ export default function ChatArea({
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
+
+  // Prevent browser navigation when files are dropped outside the chat zone
+  useEffect(() => {
+    const prevent = (e: DragEvent) => { e.preventDefault(); };
+    window.addEventListener('dragover', prevent);
+    window.addEventListener('drop', prevent);
+    return () => {
+      window.removeEventListener('dragover', prevent);
+      window.removeEventListener('drop', prevent);
+    };
+  }, []);
+
+  // Escape key to stop generation
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isLoading && onStopGeneration) {
+        onStopGeneration();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isLoading, onStopGeneration]);
 
   // Speech Recognition Hook initialization
   useEffect(() => {
@@ -508,6 +614,34 @@ export default function ChatArea({
     setAttachments(prev => prev.filter((_, i) => i !== idx));
   };
 
+  // Drag-and-drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only clear if leaving the root container (not a child)
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      processFiles(files);
+    }
+  };
+
   // Export chat to Markdown
   const handleExportChat = () => {
     if (messages.length === 0) return;
@@ -560,41 +694,69 @@ export default function ChatArea({
     document.body.removeChild(link);
   };
 
-  // Printable PDF Layout Generation
+  // Printable PDF Layout Generation — renders markdown via marked.js CDN
   const handlePrintChat = () => {
     if (messages.length === 0) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
-    
-    const html = `
-      <html>
-      <head>
-        <title>Chat Session: ${activeSessionTitle}</title>
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #1e1f20; line-height: 1.6; }
-          h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 12px; font-size: 24px; font-weight: 700; color: #131314; }
-          .msg { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; }
-          .role { font-weight: bold; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; color: #666; margin-bottom: 5px; }
-          .content { font-size: 13.5px; white-space: pre-wrap; }
-        </style>
-      </head>
-      <body>
-        <h1>Chat Session: ${activeSessionTitle}</h1>
-        ${messages.map(m => `
-          <div class="msg">
-            <div class="role">${m.role}</div>
-            <div class="content">${m.content}</div>
-          </div>
-        `).join('')}
-        <script>
-          window.onload = function() {
-            window.print();
-          }
-        </script>
-      </body>
-      </html>
-    `;
-    printWindow.document.write(html);
+
+    const escapeHtml = (str: string) =>
+      str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const msgRows = messages.map(m => (
+      `<div class="msg ${m.role}">`
+      + `<div class="role">${m.role === 'user' ? '&#128100; You' : '&#129302; Assistant'}</div>`
+      + `<div class="content" data-role="${m.role}" data-raw="${escapeHtml(m.content)}"></div>`
+      + `</div>`
+    )).join('');
+
+    printWindow.document.write(`<!DOCTYPE html><html><head>
+      <title>Chat: ${activeSessionTitle}</title>
+      <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
+      <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:36px 44px;color:#1f2937;line-height:1.7;font-size:14px;max-width:840px;margin:0 auto}
+        h1{border-bottom:2px solid #e5e7eb;padding-bottom:14px;margin-bottom:28px;font-size:20px;font-weight:700;color:#111827}
+        .msg{margin-bottom:22px;padding:16px 18px;border-radius:10px;border:1px solid #e5e7eb;page-break-inside:avoid}
+        .msg.user{background:#eff6ff;border-color:#bfdbfe}
+        .msg.assistant{background:#f9fafb}
+        .role{font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#9ca3af;margin-bottom:8px}
+        .msg.user .role{color:#3b82f6}
+        .content{font-size:13.5px;color:#1f2937}
+        .content p{margin-bottom:.7em}
+        .content h1,.content h2,.content h3{margin:1em 0 .5em;font-weight:700}
+        .content h1{font-size:1.35em}.content h2{font-size:1.2em}.content h3{font-size:1.05em}
+        .content ul,.content ol{padding-left:1.5em;margin-bottom:.7em}
+        .content li{margin-bottom:.2em}
+        .content code{background:#f1f5f9;color:#dc2626;padding:2px 5px;border-radius:4px;font-size:12px;font-family:monospace}
+        .content pre{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:8px;margin:.7em 0;font-size:12px;overflow-x:auto}
+        .content pre code{background:transparent;color:inherit;padding:0}
+        .content table{width:100%;border-collapse:collapse;margin:.7em 0;font-size:13px}
+        .content th,.content td{border:1px solid #e5e7eb;padding:6px 10px;text-align:left}
+        .content th{background:#f9fafb;font-weight:600}
+        .content blockquote{border-left:3px solid #d1d5db;padding-left:12px;color:#6b7280;margin:.7em 0}
+        @media print{body{padding:0}}
+      </style>
+    </head><body>
+      <h1>Chat Session: ${activeSessionTitle}</h1>
+      ${msgRows}
+      <script>
+        window.onload=function(){
+          document.querySelectorAll('.content').forEach(function(el){
+            var raw=el.getAttribute('data-raw')||'';
+            if(el.getAttribute('data-role')==='assistant'){
+              el.innerHTML=marked.parse(raw);
+            } else {
+              var d=document.createElement('div');
+              d.style.whiteSpace='pre-wrap';
+              d.textContent=raw;
+              el.appendChild(d);
+            }
+          });
+          setTimeout(function(){window.print();},400);
+        };
+      <\/script>
+    </body></html>`);
     printWindow.document.close();
   };
 
@@ -705,8 +867,27 @@ export default function ChatArea({
   };
 
   return (
-    <div className="flex flex-col flex-1 h-full min-w-0 bg-[#131314] relative">
-      
+    <div
+      className="flex flex-col flex-1 h-full min-w-0 bg-[#131314] relative"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag-and-Drop Overlay */}
+      {isDragOver && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#131314]/90 backdrop-blur-sm pointer-events-none">
+          <div className="flex flex-col items-center gap-4 p-10 rounded-3xl border-2 border-dashed border-[#a8c7fa] animate-pulse">
+            <div className="w-16 h-16 rounded-2xl bg-[#a8c7fa]/10 flex items-center justify-center">
+              <Paperclip className="w-8 h-8 text-[#a8c7fa]" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-[#a8c7fa]">Drop files here</p>
+              <p className="text-sm text-slate-400 mt-1">Images, PDFs, code files and more</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Header */}
       <header className="flex items-center justify-between px-6 py-4 bg-[#131314]/90 backdrop-blur-md z-10 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -879,12 +1060,30 @@ export default function ChatArea({
                   {/* Message Bubble + Actions Wrap */}
                   <div className="flex flex-col max-w-[85%] gap-1">
                     <div
-                      className={`rounded-2xl px-4.5 py-3 text-sm leading-relaxed border transition-all ${
+                      className={`rounded-2xl px-4.5 py-3 text-sm leading-relaxed border transition-all relative ${
                         isAssistant
-                          ? 'bg-[#1e1f20] border-[#303134] text-slate-200 shadow-sm shadow-black/5'
+                          ? 'bg-[#1e1f20] border-[#303134] text-slate-200 shadow-sm shadow-black/5 pr-10'
                           : 'bg-[#2d2f31] border-[#303134] text-slate-200 shadow-md shadow-black/5'
                       }`}
                     >
+                      {/* Speaker Read Aloud Button */}
+                      {isAssistant && message.content && !isEditing && (
+                        <button
+                          onClick={() => handleToggleSpeak(message.id, message.content)}
+                          className={`absolute top-2 right-2 p-1.5 rounded-xl border border-[#303134] hover:bg-[#2d2f31] text-slate-400 hover:text-slate-100 transition-all z-20 cursor-pointer ${
+                            speakingMessageId === message.id 
+                              ? 'bg-[#a8c7fa]/10 text-[#a8c7fa] border-[#a8c7fa]/30 animate-pulse opacity-100' 
+                              : 'opacity-60 hover:opacity-100'
+                          }`}
+                          title={speakingMessageId === message.id ? "Stop Reading Aloud" : "Read Aloud"}
+                        >
+                          {speakingMessageId === message.id ? (
+                            <VolumeX className="w-3.5 h-3.5" />
+                          ) : (
+                            <Volume2 className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      )}
                       {/* User message edit mode */}
                       {isEditing ? (
                         <div className="space-y-2 py-1 w-full min-w-[280px] md:min-w-[450px]">
@@ -917,6 +1116,108 @@ export default function ChatArea({
                             <span className="w-1.5 h-1.5 rounded-full bg-[#a8c7fa] animate-bounce" style={{ animationDelay: '150ms' }}></span>
                             <span className="w-1.5 h-1.5 rounded-full bg-[#a8c7fa] animate-bounce" style={{ animationDelay: '300ms' }}></span>
                           </div>
+                        ) : message.content.startsWith('[ERROR]') ? (
+                          (() => {
+                            const isApiKeyError = 
+                              message.content.toLowerCase().includes('api key') ||
+                              message.content.includes('API_KEY_INVALID') ||
+                              message.content.includes('key is missing') ||
+                              message.content.includes('Key is missing') ||
+                              message.content.toLowerCase().includes('expired') ||
+                              message.content.includes('invalid_api_key');
+                            
+                            const isQuotaError = 
+                              message.content.includes('RESOURCE_EXHAUSTED') ||
+                              message.content.toLowerCase().includes('quota exceeded') ||
+                              message.content.toLowerCase().includes('rate limit') ||
+                              message.content.includes('429') ||
+                              message.content.toLowerCase().includes('exhausted') ||
+                              message.content.toLowerCase().includes('out of tokens') ||
+                              message.content.toLowerCase().includes('token finish');
+                            
+                            if (isApiKeyError) {
+                              return (
+                                <div className="flex flex-col gap-3 py-1 font-sans text-slate-200">
+                                  <div className="flex items-start gap-3">
+                                    <div className="p-2 rounded-xl bg-rose-500/10 text-rose-450 shrink-0 mt-0.5 border border-rose-500/10">
+                                      <AlertTriangle className="w-4.5 h-4.5" />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <h4 className="font-bold text-sm text-rose-400">
+                                        API Key Expired or Invalid
+                                      </h4>
+                                      <p className="text-xs text-slate-400 leading-relaxed">
+                                        The active provider API key is expired, invalid, or was not configured. Please renew your credentials in the Control Center.
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2.5 pl-11 pt-0.5">
+                                    <button
+                                      onClick={onOpenSettings}
+                                      className="px-3.5 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/25 hover:border-rose-500/40 rounded-xl text-rose-300 hover:text-white text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5"
+                                    >
+                                      <Key className="w-3.5 h-3.5 animate-pulse" />
+                                      Renew API Key in Settings
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            } else if (isQuotaError) {
+                              return (
+                                <div className="flex flex-col gap-3 py-1 font-sans text-slate-200">
+                                  <div className="flex items-start gap-3">
+                                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-405 shrink-0 mt-0.5 border border-amber-500/10">
+                                      <AlertTriangle className="w-4.5 h-4.5" />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <h4 className="font-bold text-sm text-amber-400">
+                                        Token Quota or Rate Limit Exceeded
+                                      </h4>
+                                      <p className="text-xs text-slate-400 leading-relaxed">
+                                        The active key has run out of tokens, hit request rate limits, or exhausted its active quota. Please wait a moment or switch to an alternative provider.
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2.5 pl-11 pt-0.5">
+                                    <button
+                                      onClick={onOpenSettings}
+                                      className="px-3.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/25 hover:border-amber-500/40 rounded-xl text-amber-300 hover:text-white text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5"
+                                    >
+                                      <Key className="w-3.5 h-3.5" />
+                                      Switch Provider or Key in Settings
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            } else {
+                              return (
+                                <div className="flex flex-col gap-3 py-1 font-sans text-slate-200">
+                                  <div className="flex items-start gap-3">
+                                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-450 shrink-0 mt-0.5 border border-amber-500/10">
+                                      <AlertCircle className="w-4.5 h-4.5" />
+                                    </div>
+                                    <div className="space-y-1 w-full min-w-0">
+                                      <h4 className="font-bold text-sm text-amber-400">
+                                        API Request Failed
+                                      </h4>
+                                      <p className="text-[10px] text-slate-400 leading-relaxed font-mono select-text bg-[#131314] p-3 rounded-xl border border-[#303134] mt-2 break-all max-h-48 overflow-y-auto scrollbar-thin">
+                                        {message.content.replace('[ERROR] An error occurred:', '').trim()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2.5 pl-11 pt-0.5">
+                                    <button
+                                      onClick={onOpenSettings}
+                                      className="px-3.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/25 hover:border-amber-500/40 rounded-xl text-amber-300 hover:text-white text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5"
+                                    >
+                                      <Key className="w-3.5 h-3.5" />
+                                      Check Provider Settings
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            }
+                          })()
                         ) : (
                           <div className="prose prose-invert max-w-none text-slate-200 space-y-2">
                             <ReactMarkdown 
@@ -961,6 +1262,26 @@ export default function ChatArea({
                     {/* Quick action buttons underneath message */}
                     {!isEditing && (
                       <div className={`flex items-center gap-2 text-slate-500 opacity-0 group-hover/msg:opacity-100 transition-opacity mt-1 ${isAssistant ? 'justify-start px-2' : 'justify-end px-2'}`}>
+                        {/* Copy Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMessage(message.id, message.content)}
+                          className="p-1 rounded hover:text-slate-300 hover:bg-[#2d2f31] transition-all flex items-center gap-1"
+                          title="Copy Message"
+                        >
+                          {copiedMessageId === message.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-450" />
+                              <span className="text-[10px] font-medium font-sans text-emerald-450">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span className="text-[10px] font-medium font-sans">Copy</span>
+                            </>
+                          )}
+                        </button>
+
                         {!isAssistant && (
                           <button
                             type="button"
@@ -981,6 +1302,19 @@ export default function ChatArea({
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
                             <span className="text-[10px] font-medium font-sans">Regenerate</span>
+                          </button>
+                        )}
+
+                        {/* Delete Button */}
+                        {onDeleteMessage && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteMessage(message.id)}
+                            className="p-1 rounded hover:text-rose-450 hover:bg-rose-950/20 transition-all flex items-center gap-1"
+                            title="Delete Message"
+                          >
+                            <Trash className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-medium font-sans">Delete</span>
                           </button>
                         )}
                       </div>
@@ -1438,24 +1772,35 @@ export default function ChatArea({
 
               </div>
 
-              {/* Send Button */}
-              <button
-                type="submit"
-                disabled={(!input.trim() && attachments.length === 0) || isLoading}
-                className={`p-2 rounded-xl transition-all shadow-md ${
-                  (input.trim() || attachments.length > 0) && !isLoading
-                    ? 'bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#131314] shadow-md hover:scale-105'
-                    : 'bg-[#2d2f31] text-slate-500 cursor-not-allowed border border-transparent'
-                }`}
-              >
-                <Send className="w-4 h-4" />
-              </button>
+              {/* Send / Stop Button */}
+              {isLoading ? (
+                <button
+                  type="button"
+                  onClick={onStopGeneration}
+                  className="p-2 rounded-xl transition-all shadow-md bg-rose-500 hover:bg-rose-400 text-white shadow-rose-900/40 hover:scale-105 active:scale-95"
+                  title="Stop generation (Escape)"
+                >
+                  <Square className="w-4 h-4 fill-current" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!input.trim() && attachments.length === 0}
+                  className={`p-2 rounded-xl transition-all shadow-md ${
+                    (input.trim() || attachments.length > 0)
+                      ? 'bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#131314] shadow-md hover:scale-105'
+                      : 'bg-[#2d2f31] text-slate-500 cursor-not-allowed border border-transparent'
+                  }`}
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              )}
 
             </div>
 
           </div>
           <div className="text-center text-[10px] text-slate-600 mt-2 font-medium tracking-normal font-sans">
-            Gemma AI can make mistakes. Verify important information independently.
+            AI Chat can make mistakes. Verify important information independently.
           </div>
         </form>
       </footer>

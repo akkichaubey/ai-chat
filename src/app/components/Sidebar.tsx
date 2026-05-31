@@ -90,7 +90,6 @@ export default function Sidebar({
 }: SidebarProps) {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [tempTitle, setTempTitle] = useState('');
-  const searchQuery = '';
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [isMoveToProjectOpen, setIsMoveToProjectOpen] = useState(false);
@@ -117,10 +116,8 @@ export default function Sidebar({
     setEditingSessionId(null);
   };
 
-  // Filter sessions by search query
-  const filteredSessions = sessions.filter(session => 
-    session.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // All session filtering is handled by the SearchModal — use sessions directly
+  const filteredSessions = sessions;
 
   // Group into pinned and unpinned (excluding project chats)
   const pinnedSessions = filteredSessions.filter(s => s.pinned && !s.projectId);
@@ -364,7 +361,7 @@ export default function Sidebar({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed md:relative inset-y-0 left-0 z-40 flex flex-col h-full bg-[#171717] border-r border-neutral-800/40 transition-all duration-300 ease-in-out ${
+        className={`fixed md:relative inset-y-0 left-0 z-40 flex flex-col h-full bg-[#171717] border-r border-neutral-800/40 transition-all duration-300 ease-in-out sidebar-container ${
           isOpen ? 'w-[260px] translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 md:w-[68px] overflow-visible'
         }`}
       >
@@ -531,7 +528,7 @@ export default function Sidebar({
         <div className="flex-1 overflow-y-auto px-1 space-y-4 mb-2 scrollbar-thin">
           {filteredSessions.length === 0 ? (
             <div className="text-center text-xs text-neutral-500 py-8 px-4 font-sans leading-relaxed">
-              {searchQuery ? 'No matching chats found.' : 'No conversations yet.'}
+              {'No conversations yet.'}
             </div>
           ) : (
             <div className="space-y-4">
@@ -564,7 +561,7 @@ export default function Sidebar({
         </div>
 
         {/* Footer ChatGPT style User Settings row */}
-        <div className="p-3.5 bg-[#171717] border-t border-neutral-800/40 shrink-0 space-y-2">
+        <div className="p-3.5 bg-[#171717] border-t border-neutral-800/40 shrink-0 space-y-2 sidebar-footer-row">
           <button
             onClick={onOpenSettings}
             className="flex items-center gap-3 w-full py-2 px-2.5 rounded-lg text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all text-sm cursor-pointer border border-transparent"
@@ -601,7 +598,7 @@ export default function Sidebar({
         </>
         ) : (
           /* ================= COLLAPSED MINI-VIEW ================= */
-          <div className="flex flex-col h-full items-center justify-between py-4 select-none shrink-0 w-[68px] bg-[#171717]">
+          <div className="flex flex-col h-full items-center justify-between py-4 select-none shrink-0 w-[68px] bg-[#171717] sidebar-narrow-strip">
             {/* Collapsed top bar items */}
             <div className="flex flex-col items-center gap-5 w-full">
               {/* Gemma/Bot logo with expand panel action */}
