@@ -255,10 +255,10 @@ export default function SettingsModal({
       />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-xl bg-[#1e1f20] border border-[#303134] rounded-3xl overflow-hidden shadow-2xl shadow-black/60 transition-all z-10 max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-xl bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden shadow-2xl shadow-black/60 transition-all z-10 max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#303134] bg-[#131314] shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-950 shrink-0">
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-slate-100 tracking-wide">
               Control Center &amp; Settings
@@ -266,14 +266,14 @@ export default function SettingsModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors"
+            className="p-1 rounded-full text-slate-300 hover:text-slate-200 hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Controls */}
-        <div className="flex items-center border-b border-[#303134] bg-[#131314]/30 px-6 shrink-0 text-xs settings-tab-bar">
+        <div className="flex items-center border-b border-slate-700 bg-slate-950/30 px-6 shrink-0 text-xs settings-tab-bar">
           {[
             { id: 'general', label: 'General', Icon: User },
             { id: 'memory', label: 'AI Memory Dashboard', Icon: Brain },
@@ -286,7 +286,7 @@ export default function SettingsModal({
                 onClick={() => setActiveTab(tab.id as 'general' | 'memory')}
                 className={`py-3 px-4 font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
                   active 
-                    ? 'border-[#a8c7fa] text-[#a8c7fa]' 
+                    ? 'border-primary text-primary' 
                     : 'border-transparent text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -304,7 +304,7 @@ export default function SettingsModal({
           {activeTab === 'general' && (
             <form onSubmit={handleSubmit} className="space-y-4 font-sans">
               {/* AI Provider + API Key */}
-              <div className="space-y-2 p-4 bg-[#131314] border border-[#303134] rounded-2xl">
+              <div className="space-y-2 p-4 bg-slate-950 border border-slate-700 rounded-2xl">
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   AI Provider &amp; API Key
                 </label>
@@ -323,8 +323,8 @@ export default function SettingsModal({
                       onClick={() => { setProvider(p.id); setApiKey(''); setKeyValidResult(null); }}
                       className={`py-1.5 rounded-xl border text-[10px] font-bold transition-all cursor-pointer ${
                         provider === p.id
-                          ? `border-[#a8c7fa] bg-[#a8c7fa]/10 ${p.color}`
-                          : 'border-[#303134] text-slate-500 hover:text-slate-300 hover:border-slate-500'
+                          ? `border-primary bg-primary/10 ${p.color}`
+                          : 'border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500'
                       }`}
                     >
                       {p.label}
@@ -339,15 +339,15 @@ export default function SettingsModal({
                     placeholder={provider === 'gemini' ? 'AIzaSy...' : provider === 'anthropic' ? 'sk-ant-...' : 'sk-...'}
                     value={apiKey}
                     onChange={(e) => { setApiKey(e.target.value); setKeyValidResult(null); }}
-                    className={`flex-1 bg-[#1e1f20] border rounded-xl py-2 pl-9 pr-3 text-xs text-slate-100 placeholder-slate-600 focus:outline-none transition-colors ${
-                      keyValidResult === 'valid' ? 'border-emerald-500' : keyValidResult === 'invalid' ? 'border-rose-500' : 'border-[#303134] focus:border-[#a8c7fa]'
+                    className={`flex-1 bg-slate-900 border rounded-xl py-2 pl-9 pr-3 text-xs text-slate-100 placeholder-slate-600 focus:outline-none transition-colors ${
+                      keyValidResult === 'valid' ? 'border-emerald-500' : keyValidResult === 'invalid' ? 'border-rose-500' : 'border-slate-700 focus:border-primary'
                     }`}
                   />
                   <button
                     type="button"
                     onClick={handleValidateKey}
                     disabled={!apiKey.trim() || keyValidating}
-                    className="px-3 py-2 text-[10px] font-bold rounded-xl bg-[#2d2f31] hover:bg-[#a8c7fa] hover:text-[#131314] text-slate-300 disabled:opacity-40 transition-all shrink-0 cursor-pointer"
+                    className="px-3 py-2 text-[10px] font-bold rounded-xl bg-slate-800 hover:bg-primary hover:text-[#131314] text-slate-300 disabled:opacity-40 transition-all shrink-0 cursor-pointer"
                   >
                     {keyValidating ? (
                       <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
@@ -355,7 +355,7 @@ export default function SettingsModal({
                   </button>
                 </div>
                 <div className="flex items-start gap-1.5">
-                  <Info className="w-3.5 h-3.5 text-[#a8c7fa] shrink-0 mt-0.5" />
+                  <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
                   <span className="text-[10px] text-slate-500 leading-normal">
                     {provider === 'gemini' ? 'Get your key at aistudio.google.com/app/apikey' :
                      provider === 'openai' ? 'Get your key at platform.openai.com/api-keys' :
@@ -375,10 +375,10 @@ export default function SettingsModal({
                   <select
                     value={persona}
                     onChange={(e) => handlePersonaChange(e.target.value)}
-                    className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-2.5 pl-4 pr-10 text-xs text-slate-200 focus:outline-none cursor-pointer appearance-none"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-2xl py-2.5 pl-4 pr-10 text-xs text-slate-200 focus:outline-none cursor-pointer appearance-none"
                   >
                     {PERSONAS.map((p) => (
-                      <option key={p.id} value={p.id} className="bg-[#1e1f20] text-slate-200 text-xs">
+                      <option key={p.id} value={p.id} className="bg-slate-900 text-slate-200 text-xs">
                         {p.name} - {p.description}
                       </option>
                     ))}
@@ -404,8 +404,8 @@ export default function SettingsModal({
                       onClick={() => setAppearanceMode(value)}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                         appearanceMode === value
-                          ? 'border-[#a8c7fa] bg-[#a8c7fa]/10 text-[#a8c7fa]'
-                          : 'border-[#303134] text-slate-400 hover:text-slate-200 hover:border-slate-500'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500'
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
@@ -424,13 +424,13 @@ export default function SettingsModal({
                   <select
                     value={theme}
                     onChange={(e) => setTheme(e.target.value)}
-                    className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-2.5 pl-4 pr-10 text-xs text-slate-200 focus:outline-none cursor-pointer appearance-none"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-2xl py-2.5 pl-4 pr-10 text-xs text-slate-200 focus:outline-none cursor-pointer appearance-none"
                   >
-                    <option value="default" className="bg-[#1e1f20]">Google AI Studio (Default)</option>
-                    <option value="claude" className="bg-[#1e1f20]">Claude Charcoal</option>
-                    <option value="midnight" className="bg-[#1e1f20]">Midnight Cosmic Purple</option>
-                    <option value="cyberpunk" className="bg-[#1e1f20]">Cyberpunk Neon</option>
-                    <option value="forest" className="bg-[#1e1f20]">Forest Green</option>
+                    <option value="default" className="bg-slate-900">AI Studio Slate (Default)</option>
+                    <option value="claude" className="bg-slate-900">Warm Sandstone Charcoal</option>
+                    <option value="midnight" className="bg-slate-900">Midnight Cosmic Purple</option>
+                    <option value="cyberpunk" className="bg-slate-900">Cyberpunk Neon</option>
+                    <option value="forest" className="bg-slate-900">Forest Emerald Green</option>
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
@@ -446,7 +446,7 @@ export default function SettingsModal({
                   value={customSystemPrompt}
                   onChange={(e) => handlePromptTextChange(e.target.value)}
                   rows={3}
-                  className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-2.5 px-3 text-xs text-slate-200 placeholder-slate-600 focus:outline-none resize-none font-sans leading-relaxed scrollbar-thin"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-2xl py-2.5 px-3 text-xs text-slate-200 placeholder-slate-600 focus:outline-none resize-none font-sans leading-relaxed scrollbar-thin"
                 />
               </div>
 
@@ -456,7 +456,7 @@ export default function SettingsModal({
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1">
                     Temperature (Creativity)
                   </label>
-                  <span className="text-[10px] font-mono font-bold text-[#a8c7fa] bg-[#2d2f31]/50 px-1.5 py-0.5 rounded border border-[#303134]">
+                  <span className="text-[10px] font-mono font-bold text-primary bg-slate-800/50 px-1.5 py-0.5 rounded border border-slate-700">
                     {temperature.toFixed(1)}
                   </span>
                 </div>
@@ -467,22 +467,22 @@ export default function SettingsModal({
                   step="0.1"
                   value={temperature}
                   onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                  className="w-full h-1 bg-[#2d2f31] rounded-lg appearance-none cursor-pointer accent-[#a8c7fa]"
+                  className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
                 />
               </div>
 
               {/* Footer Save */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#303134] shrink-0">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-700 shrink-0">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-300 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold rounded-xl bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#131314] shadow-md shadow-black/10 transition-all flex items-center gap-1 cursor-pointer"
+                  className="px-5 py-2 text-xs font-semibold rounded-xl bg-primary hover:bg-primary/80 text-[#131314] shadow-md shadow-black/10 transition-all flex items-center gap-1 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" /> Save Configuration
                 </button>
@@ -493,7 +493,7 @@ export default function SettingsModal({
           {/* Memory Dashboard Tab */}
           {activeTab === 'memory' && (
             <div className="space-y-5">
-              <div className="p-3 bg-indigo-950/20 border border-[#303134] rounded-2xl text-[11px] text-[#a8c7fa] flex gap-2 items-start font-sans leading-relaxed">
+              <div className="p-3 bg-indigo-950/20 border border-slate-700 rounded-2xl text-[11px] text-primary flex gap-2 items-start font-sans leading-relaxed">
                 <Brain className="w-4 h-4 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">AI Chat Memory Bank:</span> Cross-chat memories allow the model to retain business goals, tech preferences, and language constraints across all workspace threads permanently.
@@ -501,7 +501,7 @@ export default function SettingsModal({
               </div>
 
               {/* Add Memory Form */}
-              <form onSubmit={handleAddMemory} className="p-4 bg-[#131314] border border-[#303134] rounded-2xl space-y-3 shrink-0">
+              <form onSubmit={handleAddMemory} className="p-4 bg-slate-950 border border-slate-700 rounded-2xl space-y-3 shrink-0">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1">
                   Add New Manual Memory Entry
                 </span>
@@ -512,7 +512,7 @@ export default function SettingsModal({
                     value={newMemoryKey}
                     onChange={(e) => setNewMemoryKey(e.target.value)}
                     required
-                    className="w-full bg-[#1e1f20] border border-[#303134] rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-[#a8c7fa]"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-primary"
                   />
                   <input
                     type="text"
@@ -520,12 +520,12 @@ export default function SettingsModal({
                     value={newMemoryValue}
                     onChange={(e) => setNewMemoryValue(e.target.value)}
                     required
-                    className="col-span-2 w-full bg-[#1e1f20] border border-[#303134] rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-[#a8c7fa]"
+                    className="col-span-2 w-full bg-slate-900 border border-slate-700 rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-primary"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2 bg-[#2d2f31] hover:bg-[#a8c7fa] hover:text-[#131314] text-slate-300 font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
+                  className="w-full py-2 bg-slate-800 hover:bg-primary hover:text-[#131314] text-slate-300 font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" /> Commit Memory Entry
                 </button>
@@ -556,7 +556,7 @@ export default function SettingsModal({
                     memories.map(mem => (
                       <div
                         key={mem.id}
-                        className="p-3 bg-[#131314]/30 border border-[#303134]/30 rounded-xl text-xs"
+                        className="p-3 bg-slate-950/30 border border-slate-700/30 rounded-xl text-xs"
                       >
                         {editingMemoryId === mem.id ? (
                           <div className="space-y-2">
@@ -565,27 +565,27 @@ export default function SettingsModal({
                                 type="text"
                                 value={editMemKey}
                                 onChange={(e) => setEditMemKey(e.target.value)}
-                                className="w-full bg-[#1e1f20] border border-[#a8c7fa] rounded-lg py-1.5 px-2 text-xs text-slate-100 focus:outline-none"
+                                className="w-full bg-slate-900 border border-primary rounded-lg py-1.5 px-2 text-xs text-slate-100 focus:outline-none"
                               />
                               <input
                                 type="text"
                                 value={editMemValue}
                                 onChange={(e) => setEditMemValue(e.target.value)}
-                                className="col-span-2 w-full bg-[#1e1f20] border border-[#a8c7fa] rounded-lg py-1.5 px-2 text-xs text-slate-100 focus:outline-none"
+                                className="col-span-2 w-full bg-slate-900 border border-primary rounded-lg py-1.5 px-2 text-xs text-slate-100 focus:outline-none"
                               />
                             </div>
                             <div className="flex gap-2">
                               <button
                                 type="button"
                                 onClick={() => handleUpdateMemory(mem.id)}
-                                className="flex-1 py-1.5 bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#131314] font-semibold text-[10px] rounded-lg transition-all"
+                                className="flex-1 py-1.5 bg-primary hover:bg-primary/80 text-[#131314] font-semibold text-[10px] rounded-lg transition-all"
                               >
                                 Save
                               </button>
                               <button
                                 type="button"
                                 onClick={handleCancelEdit}
-                                className="flex-1 py-1.5 bg-[#2d2f31] hover:bg-[#3a3c3e] text-slate-300 font-semibold text-[10px] rounded-lg transition-all"
+                                className="flex-1 py-1.5 bg-slate-800 hover:bg-[#3a3c3e] text-slate-300 font-semibold text-[10px] rounded-lg transition-all"
                               >
                                 Cancel
                               </button>
@@ -594,20 +594,20 @@ export default function SettingsModal({
                         ) : (
                           <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <span className="font-bold text-slate-300 block text-[10px] uppercase text-[#a8c7fa]">{mem.key}</span>
+                              <span className="font-bold text-slate-300 block text-[10px] uppercase text-primary">{mem.key}</span>
                               <span className="text-slate-400 leading-normal block mt-0.5">{mem.value}</span>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <button
                                 onClick={() => handleEditMemory(mem)}
-                                className="p-1.5 rounded-lg border border-[#303134] hover:bg-[#2d2f31] text-slate-500 hover:text-[#a8c7fa] transition-colors"
+                                className="p-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-500 hover:text-primary transition-colors"
                                 title="Edit memory"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => handleDeleteMemory(mem.id)}
-                                className="p-1.5 rounded-lg border border-[#303134] hover:bg-rose-950/20 text-slate-500 hover:text-rose-450 transition-colors"
+                                className="p-1.5 rounded-lg border border-slate-700 hover:bg-rose-950/20 text-slate-500 hover:text-rose-450 transition-colors"
                                 title="Forget memory"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -622,7 +622,7 @@ export default function SettingsModal({
               </div>
 
               {/* Workspace Backup & Restore */}
-              <div className="p-4 bg-[#131314] border border-[#303134] rounded-2xl space-y-3">
+              <div className="p-4 bg-slate-950 border border-slate-700 rounded-2xl space-y-3">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block pl-1">
                   Workspace Backup &amp; Restore
                 </span>
@@ -633,7 +633,7 @@ export default function SettingsModal({
                   <button
                     type="button"
                     onClick={handleExportBackup}
-                    className="flex-1 py-2 bg-[#2d2f31] hover:bg-[#a8c7fa] hover:text-[#131314] text-slate-300 font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="flex-1 py-2 bg-slate-800 hover:bg-primary hover:text-[#131314] text-slate-300 font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <DatabaseBackup className="w-3.5 h-3.5" />
                     Export Backup
@@ -641,7 +641,7 @@ export default function SettingsModal({
                   <button
                     type="button"
                     onClick={() => importInputRef.current?.click()}
-                    className="flex-1 py-2 bg-[#2d2f31] hover:bg-[#2d2f31]/80 text-slate-300 font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-[#303134]"
+                    className="flex-1 py-2 bg-slate-800 hover:bg-slate-800/80 text-slate-300 font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     Import Backup

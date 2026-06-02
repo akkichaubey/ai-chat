@@ -47,6 +47,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 #### Projects (Phase 3)
 - Project workspaces with name, description, and system instructions
 - Chat assignment to projects via context menu
+- Direct new chat creation inside a project workspace (plus icon triggers)
+- Collapsible sidebar nested project chat list rendering
+- Resolved option dropdown menu clipping inside project item wrappers
 - Automatic instruction injection into all AI prompts within a project
 
 #### AI Memory System (Phase 4)

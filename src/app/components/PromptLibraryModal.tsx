@@ -210,17 +210,17 @@ export default function PromptLibraryModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 font-sans select-none animate-in fade-in duration-200">
       <div className="fixed inset-0" onClick={onClose} />
       
-      <div className="relative w-full max-w-2xl bg-[#1e1f20] border border-[#303134] rounded-3xl p-6 shadow-2xl shadow-black/60 space-y-5 flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl shadow-black/60 space-y-5 flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#303134] pb-3 shrink-0">
-          <div className="flex items-center gap-2.5 text-[#a8c7fa]">
+        <div className="flex items-center justify-between border-b border-slate-700 pb-3 shrink-0">
+          <div className="flex items-center gap-2.5 text-primary">
             <Sparkles className="w-5 h-5" />
             <h3 className="text-lg font-bold text-slate-100 tracking-tight">Prompt Library</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-[#2d2f31] text-slate-400 hover:text-slate-200 transition-colors"
+            className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -235,12 +235,12 @@ export default function PromptLibraryModal({
               placeholder="Search library templates..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-2 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none transition-all font-sans"
+              className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-2xl py-2 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none transition-all font-sans"
             />
           </div>
           <button
             onClick={() => setIsCreating(!isCreating)}
-            className="py-2 px-4 rounded-2xl bg-[#a8c7fa] text-[#131314] font-semibold text-xs hover:bg-[#c2e7ff] transition-all flex items-center justify-center gap-1.5 shrink-0"
+            className="py-2 px-4 rounded-2xl bg-primary text-[#131314] font-semibold text-xs hover:bg-primary/80 transition-all flex items-center justify-center gap-1.5 shrink-0"
           >
             <Plus className="w-4 h-4" /> Create Prompt
           </button>
@@ -248,7 +248,7 @@ export default function PromptLibraryModal({
 
         {/* Create Custom Prompt Form Drawer */}
         {isCreating && (
-          <form onSubmit={handleCreatePrompt} className="p-4 bg-[#131314] border border-[#303134] rounded-2xl space-y-3 shrink-0 animate-in slide-in-from-top-4 duration-200">
+          <form onSubmit={handleCreatePrompt} className="p-4 bg-slate-950 border border-slate-700 rounded-2xl space-y-3 shrink-0 animate-in slide-in-from-top-4 duration-200">
             <div className="grid grid-cols-2 gap-3">
               <input
                 type="text"
@@ -256,12 +256,12 @@ export default function PromptLibraryModal({
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 required
-                className="w-full bg-[#1e1f20] border border-[#303134] rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-[#a8c7fa]"
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-primary"
               />
               <select
                 value={newCategory}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewCategory(e.target.value as 'developer' | 'writing' | 'marketing' | 'general' | 'seo' | 'business')}
-                className="w-full bg-[#1e1f20] border border-[#303134] rounded-xl py-2 px-3 text-xs text-slate-400 focus:outline-none focus:border-[#a8c7fa]"
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-400 focus:outline-none focus:border-primary"
               >
                 <option value="general">General Category</option>
                 <option value="developer">Developer</option>
@@ -277,19 +277,19 @@ export default function PromptLibraryModal({
               onChange={(e) => setNewContent(e.target.value)}
               required
               rows={3}
-              className="w-full bg-[#1e1f20] border border-[#303134] rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-[#a8c7fa] resize-none"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-primary resize-none"
             />
             <div className="flex items-center justify-end gap-2 text-xs">
               <button
                 type="button"
                 onClick={() => setIsCreating(false)}
-                className="py-1.5 px-3 border border-[#303134] text-slate-400 rounded-lg hover:bg-neutral-800"
+                className="py-1.5 px-3 border border-slate-700 text-slate-400 rounded-lg hover:bg-neutral-800"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="py-1.5 px-3 bg-[#a8c7fa] text-[#131314] font-semibold rounded-lg hover:bg-[#c2e7ff]"
+                className="py-1.5 px-3 bg-primary text-[#131314] font-semibold rounded-lg hover:bg-primary/80"
               >
                 Save Template
               </button>
@@ -298,7 +298,7 @@ export default function PromptLibraryModal({
         )}
 
         {/* Tab Controls */}
-        <div className="flex items-center gap-1.5 border-b border-[#303134] pb-2 overflow-x-auto shrink-0 scrollbar-none">
+        <div className="flex items-center gap-1.5 border-b border-slate-700 pb-2 overflow-x-auto shrink-0 scrollbar-none">
           {[
             { id: 'all', label: 'All Prompts', Icon: Sparkles },
             { id: 'developer', label: 'Developer', Icon: Code },
@@ -317,7 +317,7 @@ export default function PromptLibraryModal({
                 onClick={() => setActiveTab(tab.id as 'all' | 'developer' | 'writing' | 'marketing' | 'seo' | 'business' | 'custom' | 'favorites')}
                 className={`py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer whitespace-nowrap ${
                   active 
-                    ? 'bg-[#2d2f31] border-[#a8c7fa]/40 text-[#a8c7fa]' 
+                    ? 'bg-slate-800 border-primary/40 text-primary' 
                     : 'bg-transparent border-transparent text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -342,7 +342,7 @@ export default function PromptLibraryModal({
               return (
                 <div 
                   key={prompt.id}
-                  className="p-4 bg-[#1a1b1c]/80 border border-[#303134]/70 hover:border-neutral-700/80 rounded-2xl space-y-3 transition-all hover:scale-[1.002] shadow-sm relative group prompt-library-card"
+                  className="p-4 bg-[#1a1b1c]/80 border border-slate-700/70 hover:border-neutral-700/80 rounded-2xl space-y-3 transition-all hover:scale-[1.002] shadow-sm relative group prompt-library-card"
                 >
                   {editingPromptId === prompt.id ? (
                     <div className="space-y-2">
@@ -350,26 +350,26 @@ export default function PromptLibraryModal({
                         type="text"
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
-                        className="w-full bg-[#131314] border border-[#303134] rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-[#a8c7fa]"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-primary"
                       />
                       <textarea
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
                         rows={3}
-                        className="w-full bg-[#131314] border border-[#303134] rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-[#a8c7fa] resize-none"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-primary resize-none"
                       />
                       <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
                           onClick={() => setEditingPromptId(null)}
-                          className="py-1 px-3 text-xs border border-[#303134] text-slate-400 rounded-lg hover:bg-neutral-800"
+                          className="py-1 px-3 text-xs border border-slate-700 text-slate-400 rounded-lg hover:bg-neutral-800"
                         >
                           Cancel
                         </button>
                         <button
                           type="button"
                           onClick={handleSaveEditPrompt}
-                          className="py-1 px-3 text-xs bg-[#a8c7fa] text-[#131314] font-semibold rounded-lg hover:bg-[#c2e7ff]"
+                          className="py-1 px-3 text-xs bg-primary text-[#131314] font-semibold rounded-lg hover:bg-primary/80"
                         >
                           Save
                         </button>
@@ -388,7 +388,7 @@ export default function PromptLibraryModal({
                           {/* Favorite Button */}
                           <button
                             onClick={() => toggleFavorite(prompt.id)}
-                            className={`p-1.5 rounded-lg border border-[#303134] hover:bg-neutral-800 transition-colors ${
+                            className={`p-1.5 rounded-lg border border-slate-700 hover:bg-neutral-800 transition-colors ${
                               isFavorited ? 'text-[#ff007f]' : 'text-slate-500 hover:text-slate-300'
                             }`}
                             title="Favorite prompt"
@@ -399,7 +399,7 @@ export default function PromptLibraryModal({
                           {/* Copy Prompt */}
                           <button
                             onClick={() => handleCopyPrompt(prompt)}
-                            className="p-1.5 rounded-lg border border-[#303134] hover:bg-neutral-800 text-slate-400 hover:text-slate-200 transition-colors"
+                            className="p-1.5 rounded-lg border border-slate-700 hover:bg-neutral-800 text-slate-400 hover:text-slate-200 transition-colors"
                             title="Copy to clipboard"
                           >
                             {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-450" /> : <Code className="w-3.5 h-3.5" />}
@@ -409,7 +409,7 @@ export default function PromptLibraryModal({
                           {prompt.isCustom && (
                             <button
                               onClick={() => handleStartEditPrompt(prompt)}
-                              className="p-1.5 rounded-lg border border-[#303134] hover:bg-neutral-800 text-slate-500 hover:text-[#a8c7fa] transition-colors"
+                              className="p-1.5 rounded-lg border border-slate-700 hover:bg-neutral-800 text-slate-500 hover:text-primary transition-colors"
                               title="Edit prompt template"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
@@ -420,7 +420,7 @@ export default function PromptLibraryModal({
                           {prompt.isCustom && (
                             <button
                               onClick={() => handleDeleteCustomPrompt(prompt.id)}
-                              className="p-1.5 rounded-lg border border-[#303134] hover:bg-rose-950/20 text-slate-500 hover:text-rose-400 transition-colors"
+                              className="p-1.5 rounded-lg border border-slate-700 hover:bg-rose-950/20 text-slate-500 hover:text-rose-400 transition-colors"
                               title="Delete prompt template"
                             >
                               <Trash className="w-3.5 h-3.5" />
@@ -438,7 +438,7 @@ export default function PromptLibraryModal({
                           onSelectPrompt(prompt.content);
                           onClose();
                         }}
-                        className="w-full py-2 bg-[#2d2f31] hover:bg-[#a8c7fa] text-slate-300 hover:text-[#131314] font-semibold text-[11px] rounded-xl transition-all flex items-center justify-center gap-1"
+                        className="w-full py-2 bg-slate-800 hover:bg-primary text-slate-300 hover:text-[#131314] font-semibold text-[11px] rounded-xl transition-all flex items-center justify-center gap-1"
                       >
                         Inject into Active Chat Input Box
                       </button>

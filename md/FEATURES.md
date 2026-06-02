@@ -115,12 +115,15 @@ Organize related chats into project workspaces with shared AI instructions.
 - **Rename / Edit Project** — Update project metadata at any time
 - **Delete Project** — Deletes project; chats are moved back to general list
 - **Move Chat To Project** — Assign a chat via context menu "Move to..." dropdown
+- **Direct Chat Creation in Project** — Instantiate new chats directly pre-assigned to a specific project from the workspace list
+- **Nested Collapsible Project Chat Lists** — Chats belonging to projects are rendered inside collapsible folder components in the sidebar
+- **Overflow Dropdown Fix** — Dynamic rounded border system on collapsible project panels resolves 3-dot dropdown menu clipping issues
 - **Project Instructions (Context Injection)** — Instructions automatically appended to all chats inside the project
 
 ### Example
 
 ```text
-🗂 Startup Project
+🗂 Startup Project [Plus Icon to add chat]
  ├─ Marketing Chat
  ├─ Pricing Strategy Chat
  └─ Investor Pitch Chat
@@ -130,6 +133,9 @@ Organize related chats into project workspaces with shared AI instructions.
 
 - [x] Project creation and management (localStorage)
 - [x] Chat assignment to projects
+- [x] Direct chat creation within project folders
+- [x] Collapsible sidebar nested project chat rendering
+- [x] Rounded border layout adjustments to avoid overflow clipping
 - [x] Automatic context injection into AI prompts
 
 ---

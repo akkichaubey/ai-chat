@@ -46,7 +46,12 @@ import {
   AlertTriangle,
   AlertCircle,
   Volume2,
-  VolumeX
+  VolumeX,
+  Star,
+  MessageSquare,
+  Image,
+  Video,
+  Zap
 } from 'lucide-react';
 
 interface SpeechRecognitionEvent {
@@ -149,25 +154,46 @@ interface ChatAreaProps {
 
 const STARTER_PROMPTS = [
   {
-    title: 'Brainstorm Ideas',
-    desc: 'Generate creative topics for a project or newsletter.',
-    prompt: 'I want to write a weekly newsletter for developers. Help me brainstorm 5 unique topic ideas for the upcoming issues. For each topic, write a brief, compelling hook and outline the key points to cover.',
-    icon: HelpCircle,
-    color: 'text-indigo-400 bg-indigo-950/40 border-indigo-900/30'
+    title: 'Featured',
+    desc: 'Test out our most advanced and newest models.',
+    prompt: 'Tell me about the most advanced Gemini 2.5 models and what capabilities they bring to developer workspaces.',
+    icon: Star,
+    color: 'text-amber-600 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-950/20 dark:border-amber-900/30'
   },
   {
-    title: 'Explain a Concept',
-    desc: 'Break down complex topics in simple terms.',
-    prompt: 'Explain how quantum computing works in simple terms, using an analogy that a teenager would understand. Highlight the main differences between classical bits and quantum qubits.',
-    icon: Sparkles,
-    color: 'text-violet-400 bg-violet-950/40 border-violet-900/30'
+    title: 'Code and Chat',
+    desc: 'Build chatbots, agents, and code with Gemini 2.5.',
+    prompt: 'Write a Python script that integrates the Google Gen AI SDK to build a conversational assistant with system instructions.',
+    icon: MessageSquare,
+    color: 'text-blue-600 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-950/20 dark:border-blue-900/30'
   },
   {
-    title: 'Snake Game Code',
-    desc: 'Write single-file game script blocks.',
-    prompt: 'Write a complete, single-file HTML and JavaScript implementation of the classic Snake Game. Make the grid clean, handle basic controls, and display the score.',
-    icon: Code,
-    color: 'text-fuchsia-400 bg-fuchsia-950/40 border-fuchsia-900/30'
+    title: 'Image Generation',
+    desc: 'Create and edit images with Imagen 3.',
+    prompt: 'Help me write an optimized text prompt for Imagen 3 to generate a highly professional, minimalist developer workspace illustration in dark mode.',
+    icon: Image,
+    color: 'text-purple-600 bg-purple-50 border-purple-200 dark:text-purple-400 dark:bg-purple-950/20 dark:border-purple-900/30'
+  },
+  {
+    title: 'Video Generation',
+    desc: 'Generate videos with Veo models.',
+    prompt: 'Provide a structured guide on how to programmatically use Veo models for text-to-video generation tasks.',
+    icon: Video,
+    color: 'text-emerald-600 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/20 dark:border-emerald-900/30'
+  },
+  {
+    title: 'Speech and Music',
+    desc: 'Explore our text to speech and music generation.',
+    prompt: 'Give me an overview of the Audio and Speech-to-Text capabilities of the latest multimodal Google models.',
+    icon: Mic,
+    color: 'text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-450 dark:bg-rose-950/20 dark:border-rose-900/30'
+  },
+  {
+    title: 'Real-time',
+    desc: 'Real-time voice and video with Live API.',
+    prompt: 'Explain how to establish a bidirectional WebSockets connection to Google Multimodal Live API for real-time speech.',
+    icon: Zap,
+    color: 'text-orange-600 bg-orange-50 border-orange-200 dark:text-orange-450 dark:bg-orange-950/20 dark:border-orange-900/30'
   }
 ];
 
@@ -361,6 +387,8 @@ export default function ChatArea({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isNearBottomRef = useRef(true);
+  const prevMessagesLengthRef = useRef(messages.length);
 
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
@@ -389,12 +417,33 @@ export default function ChatArea({
     return () => clearTimeout(timer);
   }, [activeSessionTitle]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (smooth = false) => {
+    isNearBottomRef.current = true;
+    if (!chatContainerRef.current) return;
+    
+    if (smooth) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    } else {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
+    const prevLength = prevMessagesLengthRef.current;
+    const currentLength = messages.length;
+    prevMessagesLengthRef.current = currentLength;
+
+    // Force scroll to bottom if a new message is added
+    if (currentLength > prevLength) {
+      isNearBottomRef.current = true;
+      scrollToBottom(true);
+    } else if (isNearBottomRef.current) {
+      // Stream update: scroll instantly to prevent smooth scroll animation queues
+      scrollToBottom(false);
+    }
   }, [messages, isLoading]);
 
   // Prevent browser navigation when files are dropped outside the chat zone
@@ -471,6 +520,12 @@ export default function ChatArea({
   const handleScroll = () => {
     if (!chatContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    
+    // Check if the user is near the bottom (within 100px)
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    isNearBottomRef.current = isNearBottom;
+
+    // Show floating scroll to bottom button if user scrolled up more than 300px
     const isUp = scrollHeight - scrollTop - clientHeight > 300;
     setShowScrollBtn(isUp);
   };
@@ -819,7 +874,7 @@ export default function ChatArea({
     };
 
     return isCodeBlock ? (
-      <div className="my-4 overflow-hidden rounded-xl border border-slate-800 bg-[#0b0f19] shadow-lg shadow-black/35">
+      <div className="my-4 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-lg shadow-black/35">
         <div className="flex items-center justify-between px-4 py-2 bg-slate-900/90 border-b border-slate-800/80 text-[10px] font-mono text-slate-400">
           <span className="uppercase tracking-wider font-semibold">{parsedFiles ? 'multi-file component' : (match ? match[1] : 'code')}</span>
           <div className="flex items-center gap-2">
@@ -868,20 +923,20 @@ export default function ChatArea({
 
   return (
     <div
-      className="flex flex-col flex-1 h-full min-w-0 bg-[#131314] relative"
+      className="flex flex-col flex-1 h-full min-w-0 bg-slate-950 relative"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Drag-and-Drop Overlay */}
       {isDragOver && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#131314]/90 backdrop-blur-sm pointer-events-none">
-          <div className="flex flex-col items-center gap-4 p-10 rounded-3xl border-2 border-dashed border-[#a8c7fa] animate-pulse">
-            <div className="w-16 h-16 rounded-2xl bg-[#a8c7fa]/10 flex items-center justify-center">
-              <Paperclip className="w-8 h-8 text-[#a8c7fa]" />
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-sm pointer-events-none">
+          <div className="flex flex-col items-center gap-4 p-10 rounded-3xl border-2 border-dashed border-primary animate-pulse">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Paperclip className="w-8 h-8 text-primary" />
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-[#a8c7fa]">Drop files here</p>
+              <p className="text-lg font-bold text-primary">Drop files here</p>
               <p className="text-sm text-slate-400 mt-1">Images, PDFs, code files and more</p>
             </div>
           </div>
@@ -889,12 +944,12 @@ export default function ChatArea({
       )}
 
       {/* Top Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-[#131314]/90 backdrop-blur-md z-10 shrink-0">
+      <header className="flex items-center justify-between px-6 py-4 bg-slate-950/90 backdrop-blur-md z-10 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           {!isSidebarOpen && (
             <button
               onClick={onToggleSidebar}
-              className="p-1.5 mr-2 rounded-lg text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#2d2f31] transition-all shrink-0 cursor-pointer"
+              className="p-1.5 mr-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-all shrink-0 cursor-pointer"
               title="Open sidebar"
             >
               <PanelLeft className="w-5 h-5" />
@@ -905,12 +960,12 @@ export default function ChatArea({
               {gptAvatarEmoji}
             </div>
           ) : (
-            <Bot className="w-5 h-5 text-[#a8c7fa] shrink-0" />
+            <Bot className="w-5 h-5 text-primary shrink-0" />
           )}
           <span className="font-semibold text-sm text-slate-200 truncate">
             {activeSessionTitle}
           </span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#2d2f31] border border-[#303134] text-[#c4c7c5] uppercase tracking-wide shrink-0">
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 uppercase tracking-wide shrink-0">
             {activeModelName}
           </span>
         </div>
@@ -918,7 +973,7 @@ export default function ChatArea({
           {/* Voice Mode Button */}
           <button
             onClick={onOpenVoiceMode}
-            className="p-1.5 rounded-lg text-[#a8c7fa] hover:text-[#c2e7ff] hover:bg-[#2d2f31] transition-colors"
+            className="p-1.5 rounded-lg text-primary hover:text-[#c2e7ff] hover:bg-slate-800 transition-colors"
             title="Open Voice Chat Mode"
           >
             <Headphones className="w-4.5 h-4.5" />
@@ -928,21 +983,21 @@ export default function ChatArea({
             <>
               <button
                 onClick={handleExportChat}
-                className="p-1.5 rounded-lg text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-300 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Export Markdown (.md)"
               >
                 <Download className="w-4.5 h-4.5" />
               </button>
               <button
                 onClick={handleExportTxt}
-                className="p-1.5 rounded-lg text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-300 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Export Text (.txt)"
               >
                 <FileDown className="w-4.5 h-4.5" />
               </button>
               <button
                 onClick={handlePrintChat}
-                className="p-1.5 rounded-lg text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-300 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Print Thread / Save PDF"
               >
                 <Printer className="w-4.5 h-4.5" />
@@ -951,7 +1006,7 @@ export default function ChatArea({
           )}
           <button
             onClick={onOpenSettings}
-            className="p-1.5 rounded-lg text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors"
+            className="p-1.5 rounded-lg text-slate-300 hover:text-slate-200 hover:bg-slate-800 transition-colors"
             title="Settings"
           >
             <Settings className="w-4.5 h-4.5" />
@@ -963,14 +1018,14 @@ export default function ChatArea({
       <div
         ref={chatContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-6 scrollbar-thin relative bg-[#131314]"
+        className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-6 scrollbar-thin relative bg-slate-950"
       >
         {messages.length === 0 ? (
           /* Welcome Screen */
           <div className="max-w-2xl mx-auto h-full flex flex-col justify-center py-10 space-y-8 select-none">
             <div className="text-center space-y-3">
               <div className={`inline-flex p-3.5 rounded-2xl shadow-xl shadow-indigo-500/5 pulse-glow mb-2 ${
-                gptAvatarEmoji ? `${gptAvatarBg || 'bg-gradient-to-tr from-blue-500 to-indigo-500'} text-white text-3xl` : 'bg-[#2d2f31] border border-[#303134] text-[#a8c7fa]'
+                gptAvatarEmoji ? `${gptAvatarBg || 'bg-gradient-to-tr from-blue-500 to-indigo-500'} text-white text-3xl` : 'bg-slate-800 border border-slate-700 text-primary'
               }`}>
                 {gptAvatarEmoji ? (
                   <span className="w-8 h-8 flex items-center justify-center select-none">{gptAvatarEmoji}</span>
@@ -993,13 +1048,13 @@ export default function ChatArea({
                   <div
                     key={idx}
                     onClick={() => onSendMessage(promptText, [])}
-                    className="p-4 rounded-2xl border border-[#303134] bg-[#1e1f20] hover:bg-[#2d2f31] hover:border-[#3c4043] cursor-pointer transition-all duration-200 flex flex-col items-start gap-2.5 group text-left justify-center h-full min-h-[90px]"
+                    className="p-4 rounded-2xl border border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-slate-600 cursor-pointer transition-all duration-200 flex flex-col items-start gap-2.5 group text-left justify-center h-full min-h-[90px]"
                   >
-                    <div className="p-1.5 rounded-lg border border-neutral-700 bg-neutral-800 text-[#a8c7fa] shrink-0">
+                    <div className="p-1.5 rounded-lg border border-neutral-700 bg-neutral-800 text-primary shrink-0">
                       <Sparkles className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-semibold text-slate-200 group-hover:text-[#a8c7fa] transition-colors line-clamp-2 leading-relaxed">
+                      <h4 className="text-xs font-semibold text-slate-200 group-hover:text-primary transition-colors line-clamp-2 leading-relaxed">
                         {promptText}
                       </h4>
                       <p className="text-[9px] text-slate-500 mt-0.5 leading-none">Click to ask</p>
@@ -1013,13 +1068,13 @@ export default function ChatArea({
                     <div
                       key={idx}
                       onClick={() => onSendMessage(item.prompt, [])}
-                      className="p-4 rounded-2xl border border-[#303134] bg-[#1e1f20] hover:bg-[#2d2f31] hover:border-[#3c4043] cursor-pointer transition-all duration-200 flex flex-col items-start gap-3 group text-left"
+                      className="p-4 rounded-2xl border border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-slate-600 cursor-pointer transition-all duration-200 flex flex-col items-start gap-3 group text-left"
                     >
                       <div className={`p-2 rounded-lg border ${item.color}`}>
                         <Icon className="w-4 h-4" />
                       </div>
                       <div>
-                        <h4 className="text-xs font-semibold text-slate-200 group-hover:text-[#a8c7fa] transition-colors">
+                        <h4 className="text-xs font-semibold text-slate-200 group-hover:text-primary transition-colors">
                           {item.title}
                         </h4>
                         <p className="text-[10px] text-slate-500 mt-1 leading-relaxed line-clamp-2">
@@ -1047,7 +1102,7 @@ export default function ChatArea({
                   {/* Icon for Assistant */}
                   {isAssistant && (
                     <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 shadow-md ${
-                      gptAvatarEmoji ? `${gptAvatarBg || 'bg-gradient-to-tr from-blue-500 to-indigo-500'} border-transparent text-sm` : 'bg-[#1e1f20] border-[#303134] text-[#a8c7fa]'
+                      gptAvatarEmoji ? `${gptAvatarBg || 'bg-gradient-to-tr from-blue-500 to-indigo-500'} border-transparent text-sm` : 'bg-slate-900 border-slate-700 text-primary'
                     }`}>
                       {gptAvatarEmoji ? (
                         <span className="select-none">{gptAvatarEmoji}</span>
@@ -1062,17 +1117,17 @@ export default function ChatArea({
                     <div
                       className={`rounded-2xl px-4.5 py-3 text-sm leading-relaxed border transition-all relative ${
                         isAssistant
-                          ? 'bg-[#1e1f20] border-[#303134] text-slate-200 shadow-sm shadow-black/5 pr-10'
-                          : 'bg-[#2d2f31] border-[#303134] text-slate-200 shadow-md shadow-black/5'
+                          ? 'bg-slate-900 border-slate-700 text-slate-200 shadow-sm shadow-black/5 pr-10'
+                          : 'bg-slate-800 border-slate-700 text-slate-200 shadow-md shadow-black/5'
                       }`}
                     >
                       {/* Speaker Read Aloud Button */}
                       {isAssistant && message.content && !isEditing && (
                         <button
                           onClick={() => handleToggleSpeak(message.id, message.content)}
-                          className={`absolute top-2 right-2 p-1.5 rounded-xl border border-[#303134] hover:bg-[#2d2f31] text-slate-400 hover:text-slate-100 transition-all z-20 cursor-pointer ${
+                          className={`absolute top-2 right-2 p-1.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-all z-20 cursor-pointer ${
                             speakingMessageId === message.id 
-                              ? 'bg-[#a8c7fa]/10 text-[#a8c7fa] border-[#a8c7fa]/30 animate-pulse opacity-100' 
+                              ? 'bg-primary/10 text-primary border-primary/30 animate-pulse opacity-100' 
                               : 'opacity-60 hover:opacity-100'
                           }`}
                           title={speakingMessageId === message.id ? "Stop Reading Aloud" : "Read Aloud"}
@@ -1091,18 +1146,18 @@ export default function ChatArea({
                             value={editInput}
                             onChange={(e) => setEditInput(e.target.value)}
                             rows={3}
-                            className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-xl p-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa]"
+                            className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-xl p-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary"
                           />
                           <div className="flex justify-end gap-2 text-xs">
                             <button
                               onClick={() => setEditingMessageId(null)}
-                              className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#2d2f31] transition-colors"
+                              className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
                             >
                               Cancel
                             </button>
                             <button
                               onClick={() => handleSaveEdit(message.id)}
-                              className="px-3 py-1.5 rounded-lg bg-[#a8c7fa] text-[#131314] hover:bg-[#c2e7ff] font-medium transition-colors"
+                              className="px-3 py-1.5 rounded-lg bg-primary text-[#131314] hover:bg-primary/80 font-medium transition-colors"
                             >
                               Submit
                             </button>
@@ -1112,9 +1167,9 @@ export default function ChatArea({
                         message.content === '' ? (
                           /* Render bouncing dots loader inside empty assistant bubble */
                           <div className="flex items-center gap-1.5 py-1 px-0.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#a8c7fa] animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#a8c7fa] animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#a8c7fa] animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }}></span>
                           </div>
                         ) : message.content.startsWith('[ERROR]') ? (
                           (() => {
@@ -1200,7 +1255,7 @@ export default function ChatArea({
                                       <h4 className="font-bold text-sm text-amber-400">
                                         API Request Failed
                                       </h4>
-                                      <p className="text-[10px] text-slate-400 leading-relaxed font-mono select-text bg-[#131314] p-3 rounded-xl border border-[#303134] mt-2 break-all max-h-48 overflow-y-auto scrollbar-thin">
+                                      <p className="text-[10px] text-slate-400 leading-relaxed font-mono select-text bg-slate-950 p-3 rounded-xl border border-slate-700 mt-2 break-all max-h-48 overflow-y-auto scrollbar-thin">
                                         {message.content.replace('[ERROR] An error occurred:', '').trim()}
                                       </p>
                                     </div>
@@ -1234,21 +1289,21 @@ export default function ChatArea({
 
                       {/* Attachment display inside bubbles */}
                       {message.attachments && message.attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-3 pt-2.5 border-t border-[#303134]/30">
+                        <div className="flex flex-wrap gap-2 mt-3 pt-2.5 border-t border-slate-700/30">
                           {message.attachments.map((att, idx) => {
                             const isImage = att.type.startsWith('image/');
                             return (
-                              <div key={idx} className="flex items-center gap-1.5 p-1.5 rounded-lg bg-[#131314]/80 border border-[#303134] text-xs">
+                              <div key={idx} className="flex items-center gap-1.5 p-1.5 rounded-lg bg-slate-950/80 border border-slate-700 text-xs">
                                 {isImage ? (
                                   <img 
                                     src={`data:${att.type};base64,${att.data}`} 
                                     alt={att.name} 
-                                    className="w-16 h-16 object-cover rounded border border-[#303134] cursor-pointer hover:opacity-85 transition-opacity" 
+                                    className="w-16 h-16 object-cover rounded border border-slate-700 cursor-pointer hover:opacity-85 transition-opacity" 
                                     onClick={() => window.open(`data:${att.type};base64,${att.data}`)}
                                   />
                                 ) : (
                                   <div className="flex items-center gap-1.5 px-1">
-                                    <FileText className="w-4 h-4 text-[#a8c7fa]" />
+                                    <FileText className="w-4 h-4 text-primary" />
                                     <span className="text-xs text-slate-300 font-medium truncate max-w-[120px]">{att.name}</span>
                                   </div>
                                 )}
@@ -1266,7 +1321,7 @@ export default function ChatArea({
                         <button
                           type="button"
                           onClick={() => handleCopyMessage(message.id, message.content)}
-                          className="p-1 rounded hover:text-slate-300 hover:bg-[#2d2f31] transition-all flex items-center gap-1"
+                          className="p-1 rounded hover:text-slate-300 hover:bg-slate-800 transition-all flex items-center gap-1"
                           title="Copy Message"
                         >
                           {copiedMessageId === message.id ? (
@@ -1286,7 +1341,7 @@ export default function ChatArea({
                           <button
                             type="button"
                             onClick={() => handleStartEdit(message.id, message.content)}
-                            className="p-1 rounded hover:text-slate-300 hover:bg-[#2d2f31] transition-all flex items-center gap-1"
+                            className="p-1 rounded hover:text-slate-300 hover:bg-slate-800 transition-all flex items-center gap-1"
                             title="Edit Message"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -1297,7 +1352,7 @@ export default function ChatArea({
                           <button
                             type="button"
                             onClick={() => onRegenerateMessage(message.id)}
-                            className="p-1 rounded hover:text-slate-300 hover:bg-[#2d2f31] transition-all flex items-center gap-1"
+                            className="p-1 rounded hover:text-slate-300 hover:bg-slate-800 transition-all flex items-center gap-1"
                             title="Regenerate Response"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
@@ -1323,7 +1378,7 @@ export default function ChatArea({
 
                   {/* Icon for User */}
                   {!isAssistant && (
-                    <div className="w-8 h-8 rounded-xl bg-[#303134] border border-[#303134] flex items-center justify-center text-white shrink-0 shadow-md">
+                    <div className="w-8 h-8 rounded-xl bg-[#303134] border border-slate-700 flex items-center justify-center text-white shrink-0 shadow-md">
                       <User className="w-4.5 h-4.5" />
                     </div>
                   )}
@@ -1341,8 +1396,8 @@ export default function ChatArea({
       {/* Floating Scroll to Bottom Button */}
       {showScrollBtn && (
         <button
-          onClick={scrollToBottom}
-          className="absolute bottom-36 right-8 z-10 p-2 rounded-full bg-[#2d2f31] hover:bg-[#303134] border border-[#303134] text-[#e3e3e3] hover:text-white transition-all shadow-xl hover:scale-105"
+          onClick={() => scrollToBottom(true)}
+          className="absolute bottom-36 right-8 z-10 p-2 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white transition-all shadow-xl hover:scale-105"
           title="Scroll to bottom"
         >
           <ArrowDown className="w-5 h-5" />
@@ -1350,21 +1405,21 @@ export default function ChatArea({
       )}
 
       {/* Bottom Text Input Panel */}
-      <footer className="p-4 md:p-6 bg-[#131314]/80 backdrop-blur-md shrink-0">
+      <footer className="p-4 md:p-6 bg-slate-950/80 backdrop-blur-md shrink-0">
         <form onSubmit={handleSend} className="max-w-3xl mx-auto relative">
           
-          <div className="relative flex flex-col bg-[#1e1f20] border border-[#303134] rounded-2xl focus-within:border-[#a8c7fa] focus-within:ring-1 focus-within:ring-[#a8c7fa] transition-all shadow-lg shadow-black/25 p-2">
+          <div className="relative flex flex-col bg-slate-900 border border-slate-700 rounded-2xl focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all shadow-lg shadow-black/25 p-2">
             
             {/* File attachment previews */}
             {attachments.length > 0 && (
               <>
-                <div className="flex flex-wrap gap-2 px-2 pb-2 pt-1 border-b border-[#303134]/30 mb-2">
+                <div className="flex flex-wrap gap-2 px-2 pb-2 pt-1 border-b border-slate-700/30 mb-2">
                   {attachments.map((att, index) => (
-                    <div key={index} className="relative group flex items-center gap-1.5 p-1.5 rounded-lg bg-[#2d2f31]/80 border border-[#303134] text-xs">
+                    <div key={index} className="relative group flex items-center gap-1.5 p-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-xs">
                       {att.type.startsWith('image/') ? (
                         <img src={att.previewUrl} className="w-8 h-8 rounded object-cover" />
                       ) : (
-                        <FileText className="w-4 h-4 text-[#a8c7fa]" />
+                        <FileText className="w-4 h-4 text-primary" />
                       )}
                       <span className="truncate max-w-[120px] text-slate-300 font-sans">{att.name}</span>
                       <button
@@ -1385,30 +1440,30 @@ export default function ChatArea({
                       <button
                         type="button"
                         onClick={() => triggerQuickAction("Please convert this layout/design image into fully responsive frontend code using React, TypeScript, and Tailwind CSS. Ensure it has smooth animations, follows modern layout patterns, and contains no placeholders.")}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-neutral-800 text-slate-300 hover:bg-[#2d2f31] hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-neutral-800 text-slate-300 hover:bg-slate-800 hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
                       >
-                        <Code className="w-3 h-3 text-[#a8c7fa]" /> Convert to Code
+                        <Code className="w-3 h-3 text-primary" /> Convert to Code
                       </button>
                       <button
                         type="button"
                         onClick={() => triggerQuickAction("Please perform a professional UX/UI audit on this layout image. Focus on visual hierarchy, alignment, accessibility guidelines, contrast, and action affordances. Suggest clear improvements.")}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-neutral-800 text-slate-300 hover:bg-[#2d2f31] hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-neutral-800 text-slate-300 hover:bg-slate-800 hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
                       >
-                        <Eye className="w-3 h-3 text-[#a8c7fa]" /> UX/UI Audit
+                        <Eye className="w-3 h-3 text-primary" /> UX/UI Audit
                       </button>
                       <button
                         type="button"
                         onClick={() => triggerQuickAction("Explain the design layout in this screenshot and suggest 3 different visual layout variations or structural improvements. Tell me how to implement them.")}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-neutral-800 text-slate-300 hover:bg-[#2d2f31] hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-neutral-800 text-slate-300 hover:bg-slate-800 hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
                       >
-                        <Sparkles className="w-3 h-3 text-[#a8c7fa]" /> Suggest Variations
+                        <Sparkles className="w-3 h-3 text-primary" /> Suggest Variations
                       </button>
                       <button
                         type="button"
                         onClick={() => triggerQuickAction("Please transcribe all readable text from this image exactly as it appears. Group the text by sections or layout areas.")}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-neutral-800 text-slate-300 hover:bg-[#2d2f31] hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-neutral-800 text-slate-300 hover:bg-slate-800 hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
                       >
-                        <FileText className="w-3 h-3 text-[#a8c7fa]" /> Extract Text (OCR)
+                        <FileText className="w-3 h-3 text-primary" /> Extract Text (OCR)
                       </button>
                     </>
                   ) : (
@@ -1416,23 +1471,23 @@ export default function ChatArea({
                       <button
                         type="button"
                         onClick={() => triggerQuickAction("Please summarize this document. Extract the main objectives, key findings, and a high-level summary paragraph.")}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-[#2d2f31]/60 text-slate-300 hover:bg-neutral-700 hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-slate-800/60 text-slate-300 hover:bg-neutral-700 hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
                       >
-                        <FileText className="w-3 h-3 text-[#a8c7fa]" /> Summarize Takeaways
+                        <FileText className="w-3 h-3 text-primary" /> Summarize Takeaways
                       </button>
                       <button
                         type="button"
                         onClick={() => triggerQuickAction("Please extract any key data points, figures, stats, tables, or charts from this document and present them in clear markdown tables.")}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-[#2d2f31]/60 text-slate-300 hover:bg-neutral-700 hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-slate-800/60 text-slate-300 hover:bg-neutral-700 hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
                       >
-                        <Sliders className="w-3 h-3 text-[#a8c7fa]" /> Extract Key Figures
+                        <Sliders className="w-3 h-3 text-primary" /> Extract Key Figures
                       </button>
                       <button
                         type="button"
                         onClick={() => triggerQuickAction("Please translate the contents of this document into clear, natural English. Maintain structural headings.")}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-[#2d2f31]/60 text-slate-300 hover:bg-neutral-700 hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-neutral-700 bg-slate-800/60 text-slate-300 hover:bg-neutral-700 hover:text-white text-[10px] font-semibold transition-all cursor-pointer"
                       >
-                        <Languages className="w-3 h-3 text-[#a8c7fa]" /> Translate to English
+                        <Languages className="w-3 h-3 text-primary" /> Translate to English
                       </button>
                     </>
                   )}
@@ -1461,7 +1516,7 @@ export default function ChatArea({
             />
             
             {/* Input Toolbar */}
-            <div className="flex items-center justify-between border-t border-[#303134]/40 pt-2 px-2">
+            <div className="flex items-center justify-between border-t border-slate-700/40 pt-2 px-2">
               <div className="flex items-center gap-2">
                 
                 {/* Plus popover menu */}
@@ -1475,8 +1530,8 @@ export default function ChatArea({
                     }}
                     className={`p-2 rounded-xl transition-all cursor-pointer ${
                       showPlusMenu 
-                        ? 'bg-neutral-800 text-[#a8c7fa]' 
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-[#2d2f31]'
+                        ? 'bg-neutral-800 text-primary' 
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                     }`}
                     title="Add content, style, or skills"
                   >
@@ -1493,7 +1548,7 @@ export default function ChatArea({
                           setActiveSubmenu('main');
                         }}
                       />
-                      <div className="absolute left-0 bottom-11 z-50 bg-[#1e1f20] border border-[#303134] rounded-xl shadow-2xl py-1.5 w-60 text-slate-200 select-none animate-in fade-in slide-in-from-bottom-2 duration-150">
+                      <div className="absolute left-0 bottom-11 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1.5 w-60 text-slate-200 select-none animate-in fade-in slide-in-from-bottom-2 duration-150">
                         {activeSubmenu === 'main' && (
                           <div className="flex flex-col">
                             {/* Attach Files */}
@@ -1503,9 +1558,9 @@ export default function ChatArea({
                                 fileInputRef.current?.click();
                                 setShowPlusMenu(false);
                               }}
-                              className="flex items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-[#2d2f31] transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
+                              className="flex items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-slate-800 transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
                             >
-                              <Paperclip className="w-4 h-4 text-[#a8c7fa]" />
+                              <Paperclip className="w-4 h-4 text-primary" />
                               Add files or photos
                             </button>
 
@@ -1516,7 +1571,7 @@ export default function ChatArea({
                                 handleTakeScreenshot();
                                 setShowPlusMenu(false);
                               }}
-                              className="flex items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-[#2d2f31] transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
+                              className="flex items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-slate-800 transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
                             >
                               <Camera className="w-4 h-4 text-slate-400" />
                               Take a screenshot
@@ -1530,7 +1585,7 @@ export default function ChatArea({
                                   onOpenPromptLibrary();
                                   setShowPlusMenu(false);
                                 }}
-                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-[#2d2f31] transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
+                                className="flex items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-slate-800 transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
                               >
                                 <Sparkles className="w-4 h-4 text-amber-400" />
                                 Prompt Library
@@ -1545,20 +1600,20 @@ export default function ChatArea({
                               onClick={() => {
                                 setWebSearchEnabled(!webSearchEnabled);
                               }}
-                              className="flex items-center justify-between px-3 py-2 text-left text-xs hover:bg-[#2d2f31] transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
+                              className="flex items-center justify-between px-3 py-2 text-left text-xs hover:bg-slate-800 transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
                             >
                               <div className="flex items-center gap-2.5">
                                 <Globe className="w-4 h-4 text-sky-400" />
                                 Web search
                               </div>
-                              {webSearchEnabled && <Check className="w-3.5 h-3.5 text-[#a8c7fa]" />}
+                              {webSearchEnabled && <Check className="w-3.5 h-3.5 text-primary" />}
                             </button>
 
                             {/* Use Style Submenu trigger */}
                             <button
                               type="button"
                               onClick={() => setActiveSubmenu('styles')}
-                              className="flex items-between justify-between px-3 py-2 text-left text-xs hover:bg-[#2d2f31] transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
+                              className="flex items-between justify-between px-3 py-2 text-left text-xs hover:bg-slate-800 transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
                             >
                               <div className="flex items-center gap-2.5 flex-1">
                                 <Feather className="w-4 h-4 text-amber-400" />
@@ -1571,7 +1626,7 @@ export default function ChatArea({
                             <button
                               type="button"
                               onClick={() => setActiveSubmenu('skills')}
-                              className="flex items-between justify-between px-3 py-2 text-left text-xs hover:bg-[#2d2f31] transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
+                              className="flex items-between justify-between px-3 py-2 text-left text-xs hover:bg-slate-800 transition-colors cursor-pointer w-full text-slate-300 hover:text-white"
                             >
                               <div className="flex items-center gap-2.5 flex-1">
                                 <Sliders className="w-4 h-4 text-purple-400" />
@@ -1585,7 +1640,7 @@ export default function ChatArea({
                         {activeSubmenu === 'styles' && (
                           <div className="flex flex-col">
                             {/* Back Header */}
-                            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#303134]/40 mb-1">
+                            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-700/40 mb-1">
                               <button
                                 type="button"
                                 onClick={() => setActiveSubmenu('main')}
@@ -1611,7 +1666,7 @@ export default function ChatArea({
                                   onStyleChange(style.id);
                                   setShowPlusMenu(false);
                                 }}
-                                className="flex items-center justify-between px-3 py-1.5 text-left hover:bg-[#2d2f31] transition-colors cursor-pointer w-full"
+                                className="flex items-center justify-between px-3 py-1.5 text-left hover:bg-slate-800 transition-colors cursor-pointer w-full"
                               >
                                 <div className="flex flex-col">
                                   <span className="text-xs font-semibold text-slate-200">{style.name}</span>
@@ -1626,7 +1681,7 @@ export default function ChatArea({
                         {activeSubmenu === 'skills' && (
                           <div className="flex flex-col">
                             {/* Back Header */}
-                            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#303134]/40 mb-1">
+                            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-700/40 mb-1">
                               <button
                                 type="button"
                                 onClick={() => setActiveSubmenu('main')}
@@ -1651,7 +1706,7 @@ export default function ChatArea({
                                   onSkillChange(skill.id);
                                   setShowPlusMenu(false);
                                 }}
-                                className="flex items-center justify-between px-3 py-1.5 text-left hover:bg-[#2d2f31] transition-colors cursor-pointer w-full"
+                                className="flex items-center justify-between px-3 py-1.5 text-left hover:bg-slate-800 transition-colors cursor-pointer w-full"
                               >
                                 <div className="flex flex-col">
                                   <span className="text-xs font-semibold text-slate-200">{skill.name}</span>
@@ -1677,7 +1732,7 @@ export default function ChatArea({
                   className={`p-2 rounded-xl transition-all ${
                     isListening 
                       ? 'text-red-400 bg-red-950/20 border border-red-900/40 animate-pulse' 
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-[#2d2f31]'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                   }`}
                   title={isListening ? "Stop listening" : "Speech to Text dictation"}
                 >
@@ -1695,8 +1750,8 @@ export default function ChatArea({
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold font-sans transition-all ${
                     webSearchEnabled 
-                      ? 'bg-[#a8c7fa]/15 border-[#a8c7fa]/35 text-[#a8c7fa]' 
-                      : 'bg-transparent border-[#303134] text-slate-500 hover:text-slate-300 hover:border-[#3c4043]'
+                      ? 'bg-primary/15 border-primary/35 text-primary' 
+                      : 'bg-transparent border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600'
                   }`}
                   title="Search the web with Google Search grounding (Forces Gemini 2.5 Flash)"
                 >
@@ -1714,8 +1769,8 @@ export default function ChatArea({
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold font-sans transition-all ${
                     thinkingEnabled && !webSearchEnabled
-                      ? 'bg-[#a8c7fa]/15 border-[#a8c7fa]/35 text-[#a8c7fa]' 
-                      : 'bg-transparent border-[#303134] text-slate-500 hover:text-slate-300 hover:border-[#3c4043] disabled:opacity-40 disabled:cursor-not-allowed'
+                      ? 'bg-primary/15 border-primary/35 text-primary' 
+                      : 'bg-transparent border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed'
                   }`}
                   title={webSearchEnabled ? "Thinking Mode cannot be combined with Web Search" : "Enable Deep Reasoning (Gemma 4 high-thinking mode)"}
                 >
@@ -1736,8 +1791,8 @@ export default function ChatArea({
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold font-sans transition-all select-none ${
                       webSearchEnabled
-                        ? 'bg-transparent border-[#303134]/50 text-slate-600 cursor-not-allowed opacity-50'
-                        : 'bg-[#131314] border-[#303134] text-slate-300 hover:text-white hover:border-[#3c4043]'
+                        ? 'bg-transparent border-slate-700/50 text-slate-600 cursor-not-allowed opacity-50'
+                        : 'bg-slate-950 border-slate-700 text-slate-300 hover:text-white hover:border-slate-600'
                     }`}
                     title={webSearchEnabled ? "Model is locked to Gemini 2.5 Flash Grounded while Web Search is ON" : "Change active AI model"}
                   >
@@ -1746,7 +1801,7 @@ export default function ChatArea({
                   </button>
 
                   {showModelDropdown && !webSearchEnabled && (
-                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1e1f20] border border-[#303134] rounded-xl shadow-2xl z-30 p-1.5 max-h-60 overflow-y-auto scrollbar-thin">
+                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-30 p-1.5 max-h-60 overflow-y-auto scrollbar-thin">
                       {AVAILABLE_MODELS.map((m) => (
                         <button
                           key={m.id}
@@ -1758,12 +1813,12 @@ export default function ChatArea({
                           }}
                           className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-left text-xs font-sans transition-all ${
                             m.id === selectedModel
-                              ? 'bg-[#2d2f31] text-[#a8c7fa]'
+                              ? 'bg-slate-800 text-primary'
                               : 'text-slate-300 hover:bg-[#202124] hover:text-white'
                           }`}
                         >
                           <span className="truncate pr-2">{m.name}</span>
-                          {m.id === selectedModel && <Check className="w-3.5 h-3.5 text-[#a8c7fa] shrink-0" />}
+                          {m.id === selectedModel && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
                         </button>
                       ))}
                     </div>
@@ -1788,8 +1843,8 @@ export default function ChatArea({
                   disabled={!input.trim() && attachments.length === 0}
                   className={`p-2 rounded-xl transition-all shadow-md ${
                     (input.trim() || attachments.length > 0)
-                      ? 'bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#131314] shadow-md hover:scale-105'
-                      : 'bg-[#2d2f31] text-slate-500 cursor-not-allowed border border-transparent'
+                      ? 'bg-primary hover:bg-primary/80 text-[#131314] shadow-md hover:scale-105'
+                      : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-transparent'
                   }`}
                 >
                   <Send className="w-4 h-4" />
@@ -1815,24 +1870,24 @@ export default function ChatArea({
           />
           
           {/* Drawer Content */}
-          <div className="relative w-full max-w-4xl h-full bg-[#1e1f20] border-l border-[#303134] shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-300">
+          <div className="relative w-full max-w-4xl h-full bg-slate-900 border-l border-slate-700 shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-300">
             
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#303134] bg-[#1a1a1a]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-[#1a1a1a]">
               <div className="flex items-center gap-2">
-                <Code className="w-5 h-5 text-[#a8c7fa]" />
+                <Code className="w-5 h-5 text-primary" />
                 <span className="font-semibold text-sm text-slate-200">Interactive Multi-File Sandbox</span>
               </div>
               <button
                 onClick={() => setIsSandboxOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#2d2f31] transition-all cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             
             {/* Sandbox Body */}
-            <div className="flex-1 overflow-y-auto p-6 bg-[#131314]">
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-950">
               {sandboxFiles && (
                 <Sandpack
                   template={

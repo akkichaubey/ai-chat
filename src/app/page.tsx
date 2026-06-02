@@ -135,7 +135,10 @@ export default function Home() {
       const savedProjects = localStorage.getItem('gemma_projects');
       if (savedProjects) {
         try {
-          setProjects(JSON.parse(savedProjects));
+          const parsed = JSON.parse(savedProjects);
+          if (Array.isArray(parsed)) {
+            setProjects(parsed);
+          }
         } catch (e) {
           console.error('Failed to parse projects', e);
         }
@@ -153,24 +156,26 @@ export default function Home() {
       if (savedSessions) {
         try {
           const parsed = JSON.parse(savedSessions);
-          parsedSessions = parsed.map((s: Partial<ChatSession>) => ({
-            id: s.id,
-            title: s.title || 'New Chat',
-            pinned: s.pinned || false,
-            persona: s.persona || loadedSettings.persona || 'general',
-            customSystemPrompt: s.customSystemPrompt || loadedSettings.customSystemPrompt || '',
-            gptId: s.gptId,
-            gptName: s.gptName,
-            gptAvatarEmoji: s.gptAvatarEmoji,
-            gptAvatarBg: s.gptAvatarBg,
-            gptDescription: s.gptDescription,
-            gptStarterPrompts: s.gptStarterPrompts,
-            activeStyle: s.activeStyle || 'normal',
-            activeSkill: s.activeSkill || 'default',
-            thinkingEnabled: s.thinkingEnabled ?? false,
-            webSearchEnabled: s.webSearchEnabled ?? false,
-            projectId: s.projectId
-          }));
+          if (Array.isArray(parsed)) {
+            parsedSessions = parsed.map((s: Partial<ChatSession>) => ({
+              id: s.id || Date.now().toString(),
+              title: s.title || 'New Chat',
+              pinned: s.pinned || false,
+              persona: s.persona || loadedSettings.persona || 'general',
+              customSystemPrompt: s.customSystemPrompt || loadedSettings.customSystemPrompt || '',
+              gptId: s.gptId,
+              gptName: s.gptName,
+              gptAvatarEmoji: s.gptAvatarEmoji,
+              gptAvatarBg: s.gptAvatarBg,
+              gptDescription: s.gptDescription,
+              gptStarterPrompts: s.gptStarterPrompts,
+              activeStyle: s.activeStyle || 'normal',
+              activeSkill: s.activeSkill || 'default',
+              thinkingEnabled: s.thinkingEnabled ?? false,
+              webSearchEnabled: s.webSearchEnabled ?? false,
+              projectId: s.projectId
+            }));
+          }
         } catch (e) {
           console.error('Failed to parse sessions', e);
         }
@@ -180,7 +185,10 @@ export default function Home() {
       const savedCustomGpts = localStorage.getItem('gemma_chat_custom_gpts');
       if (savedCustomGpts) {
         try {
-          setCustomGpts(JSON.parse(savedCustomGpts));
+          const parsed = JSON.parse(savedCustomGpts);
+          if (Array.isArray(parsed)) {
+            setCustomGpts(parsed);
+          }
         } catch (e) {
           console.error('Failed to parse custom GPTs', e);
         }
@@ -329,7 +337,7 @@ export default function Home() {
   };
 
   // 3. Create Session
-  const handleCreateSession = () => {
+  const handleCreateSession = (projectId?: unknown) => {
     const newId = Date.now().toString();
     const newSession: ChatSession = {
       id: newId,
@@ -341,6 +349,7 @@ export default function Home() {
       activeSkill: 'default',
       thinkingEnabled: false,
       webSearchEnabled: false,
+      projectId: typeof projectId === 'string' ? projectId : undefined,
     };
     const updatedSessions = [newSession, ...sessions];
     const updatedMessagesMap = {
@@ -1095,6 +1104,7 @@ User Statement: "${content}"`;
         }}
         onDeleteProject={handleDeleteProject}
         onMoveSessionToProject={handleMoveSessionToProject}
+        onCreateSessionInProject={handleCreateSession}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenPromptLibrary={() => setIsPromptLibraryOpen(true)}
       />

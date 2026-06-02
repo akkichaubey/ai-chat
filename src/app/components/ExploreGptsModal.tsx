@@ -225,19 +225,19 @@ export default function ExploreGptsModal({
       />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-2xl bg-[#1e1f20] border border-[#303134] rounded-2xl overflow-hidden shadow-2xl transition-all transform scale-100 z-10 max-h-[85vh] flex flex-col font-sans">
+      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl transition-all transform scale-100 z-10 max-h-[85vh] flex flex-col font-sans">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#303134] bg-[#131314] shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-950 shrink-0">
           <div className="flex items-center gap-2">
-            <Compass className="w-5 h-5 text-[#a8c7fa]" />
+            <Compass className="w-5 h-5 text-primary" />
             <h3 className="text-base font-semibold text-slate-100 tracking-wide">
               {view === 'explore' ? 'Explore Custom GPTs' : editingGptId ? 'Edit GPT Builder' : 'Create Custom GPT'}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors"
+            className="p-1 rounded-lg text-slate-300 hover:text-slate-200 hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -247,7 +247,7 @@ export default function ExploreGptsModal({
           /* ================= EXPLORE VIEW ================= */
           <>
             {/* Toolbar row (Search & Create) */}
-            <div className="p-5 border-b border-[#303134]/40 bg-[#131314]/40 flex gap-3 items-center shrink-0">
+            <div className="p-5 border-b border-slate-700/40 bg-slate-950/40 flex gap-3 items-center shrink-0">
               <div className="relative flex-1">
                 <Search className="absolute left-3 w-4 h-4 text-slate-500" />
                 <input
@@ -255,12 +255,12 @@ export default function ExploreGptsModal({
                   placeholder="Search GPTs by name or description..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-xl py-2 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa] transition-colors"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-xl py-2 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                 />
               </div>
               <button
                 onClick={handleCreateNew}
-                className="flex items-center gap-1.5 px-4 py-2 bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#131314] rounded-xl text-sm font-semibold shadow-md transition-all shrink-0 cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/80 text-[#131314] rounded-xl text-sm font-semibold shadow-md transition-all shrink-0 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Create GPT
@@ -284,7 +284,7 @@ export default function ExploreGptsModal({
                           <div
                             key={gpt.id}
                             onClick={() => onSelectGpt(gpt)}
-                            className="group flex gap-4 p-4 rounded-xl border border-[#303134] bg-[#1e1f20] hover:bg-[#2d2f31] hover:border-[#3c4043] transition-all cursor-pointer relative"
+                            className="group flex gap-4 p-4 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-slate-600 transition-all cursor-pointer relative"
                           >
                             <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 ${gpt.avatarBg}`}>
                               {gpt.avatarEmoji}
@@ -332,7 +332,7 @@ export default function ExploreGptsModal({
                           <div
                             key={gpt.id}
                             onClick={() => onSelectGpt(gpt)}
-                            className="flex gap-4 p-4 rounded-xl border border-[#303134] bg-[#1e1f20] hover:bg-[#2d2f31] hover:border-[#3c4043] transition-all cursor-pointer"
+                            className="flex gap-4 p-4 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-slate-600 transition-all cursor-pointer"
                           >
                             <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 ${gpt.avatarBg}`}>
                               {gpt.avatarEmoji}
@@ -366,7 +366,7 @@ export default function ExploreGptsModal({
               )}
 
               {/* Avatar Builder Panel */}
-              <div className="flex items-center gap-5 p-4 rounded-xl border border-[#303134] bg-[#131314]/30">
+              <div className="flex items-center gap-5 p-4 rounded-xl border border-slate-700 bg-slate-950/30">
                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shrink-0 shadow-lg ${avatarBg}`}>
                   {avatarEmoji}
                 </div>
@@ -382,8 +382,8 @@ export default function ExploreGptsModal({
                           key={emoji}
                           type="button"
                           onClick={() => setAvatarEmoji(emoji)}
-                          className={`p-1 text-base rounded hover:bg-[#2d2f31] transition-colors ${
-                            avatarEmoji === emoji ? 'bg-[#2d2f31] border border-neutral-700' : 'border border-transparent'
+                          className={`p-1 text-base rounded hover:bg-slate-800 transition-colors ${
+                            avatarEmoji === emoji ? 'bg-slate-800 border border-neutral-700' : 'border border-transparent'
                           }`}
                         >
                           {emoji}
@@ -394,7 +394,7 @@ export default function ExploreGptsModal({
                         maxLength={2}
                         value={avatarEmoji}
                         onChange={(e) => setAvatarEmoji(e.target.value.trim() || '🤖')}
-                        className="w-8 h-7 text-center text-xs bg-[#131314] border border-[#303134] rounded text-slate-200 focus:outline-none focus:border-[#a8c7fa]"
+                        className="w-8 h-7 text-center text-xs bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-primary"
                         title="Or paste custom emoji"
                       />
                     </div>
@@ -432,7 +432,7 @@ export default function ExploreGptsModal({
                     placeholder="e.g. React Coach"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-xl py-2 px-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa] transition-colors"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-xl py-2 px-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -444,7 +444,7 @@ export default function ExploreGptsModal({
                     placeholder="e.g. Explains component design systems"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-xl py-2 px-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa] transition-colors"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-xl py-2 px-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                   />
                 </div>
               </div>
@@ -459,7 +459,7 @@ export default function ExploreGptsModal({
                   value={systemInstruction}
                   onChange={(e) => setSystemInstruction(e.target.value)}
                   rows={4}
-                  className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-xl py-2.5 px-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa] transition-colors resize-none leading-relaxed scrollbar-thin"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-xl py-2.5 px-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-primary transition-colors resize-none leading-relaxed scrollbar-thin"
                 />
               </div>
 
@@ -467,9 +467,9 @@ export default function ExploreGptsModal({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Temperature (Creativity)</label>
-                  <span className="text-[10px] font-mono text-[#a8c7fa] bg-[#131314] px-1.5 py-0.5 rounded border border-[#303134]">{gptTemperature.toFixed(1)}</span>
+                  <span className="text-[10px] font-mono text-primary bg-slate-950 px-1.5 py-0.5 rounded border border-slate-700">{gptTemperature.toFixed(1)}</span>
                 </div>
-                <input type="range" min="0" max="2" step="0.1" value={gptTemperature} onChange={(e) => setGptTemperature(parseFloat(e.target.value))} className="w-full h-1 bg-[#2d2f31] rounded-lg appearance-none cursor-pointer accent-[#a8c7fa]" />
+                <input type="range" min="0" max="2" step="0.1" value={gptTemperature} onChange={(e) => setGptTemperature(parseFloat(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary" />
                 <div className="flex justify-between text-[9px] text-slate-600">
                   <span>Precise (0)</span><span>Balanced (1)</span><span>Creative (2)</span>
                 </div>
@@ -488,7 +488,7 @@ export default function ExploreGptsModal({
                       placeholder={`Starter prompt ${idx + 1}...`}
                       value={starter}
                       onChange={(e) => handleStarterChange(idx, e.target.value)}
-                      className="w-full bg-[#131314] border border-[#303134] focus:border-slate-600 rounded-xl py-2 px-3 text-xs text-slate-300 placeholder-slate-700 focus:outline-none transition-colors"
+                      className="w-full bg-slate-950 border border-slate-700 focus:border-slate-600 rounded-xl py-2 px-3 text-xs text-slate-300 placeholder-slate-700 focus:outline-none transition-colors"
                     />
                   ))}
                 </div>
@@ -497,17 +497,17 @@ export default function ExploreGptsModal({
             </div>
 
             {/* Footer Buttons */}
-            <div className="flex items-center justify-end gap-3 p-4 border-t border-[#303134] bg-[#131314] shrink-0">
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-700 bg-slate-950 shrink-0">
               <button
                 type="button"
                 onClick={() => setView('explore')}
-                className="px-4 py-2 text-sm font-medium rounded-xl text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-colors cursor-pointer"
+                className="px-4 py-2 text-sm font-medium rounded-xl text-slate-300 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Back to Explore
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 text-sm font-semibold rounded-xl bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#131314] shadow-md transition-all cursor-pointer"
+                className="px-5 py-2 text-sm font-semibold rounded-xl bg-primary hover:bg-primary/80 text-[#131314] shadow-md transition-all cursor-pointer"
               >
                 {editingGptId ? 'Save Changes' : 'Create Assistant'}
               </button>

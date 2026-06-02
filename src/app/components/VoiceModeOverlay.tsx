@@ -454,13 +454,13 @@ export default function VoiceModeOverlay({
       {/* Background click interrupts AI speaking */}
       <div 
         onClick={handleInterrupt}
-        className="absolute inset-0 bg-[#131314]/90 transition-opacity"
+        className="absolute inset-0 bg-slate-950/90 transition-opacity"
       />
 
-      <div className="relative w-full max-w-lg bg-[#1e1f20] border border-[#303134] rounded-3xl overflow-hidden shadow-2xl flex flex-col h-[75vh] max-h-[600px] z-10">
+      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-[75vh] max-h-[600px] z-10">
         
         {/* Header Controls */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#303134] bg-[#131314]/80">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-950/80">
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-semibold text-slate-300 font-sans tracking-wide uppercase">
@@ -473,8 +473,8 @@ export default function VoiceModeOverlay({
               onClick={() => setShowSettings(!showSettings)}
               className={`p-2 rounded-xl transition-all ${
                 showSettings 
-                  ? 'text-[#a8c7fa] bg-[#2d2f31]' 
-                  : 'text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31]'
+                  ? 'text-primary bg-slate-800' 
+                  : 'text-slate-300 hover:text-slate-200 hover:bg-slate-800'
               }`}
               title="Voice Settings"
             >
@@ -482,7 +482,7 @@ export default function VoiceModeOverlay({
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-[#c4c7c5] hover:text-[#e3e3e3] hover:bg-[#2d2f31] transition-all"
+              className="p-2 rounded-xl text-slate-300 hover:text-slate-200 hover:bg-slate-800 transition-all"
               title="Close Voice Mode"
             >
               <X className="w-5 h-5" />
@@ -518,7 +518,7 @@ export default function VoiceModeOverlay({
 
             {/* Glowing gradient rotating border for Thinking */}
             {voiceStatus === 'thinking' && (
-              <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#a8c7fa] animate-spin" style={{ animationDuration: '8s' }} />
+              <div className="absolute inset-0 rounded-full border-2 border-dashed border-primary animate-spin" style={{ animationDuration: '8s' }} />
             )}
 
             {/* Main Central Orb */}
@@ -526,10 +526,10 @@ export default function VoiceModeOverlay({
               voiceStatus === 'listening'
                 ? 'bg-gradient-to-br from-blue-500 to-cyan-600 border-blue-400 scale-105 shadow-blue-500/25'
                 : voiceStatus === 'thinking'
-                  ? 'bg-gradient-to-br from-[#1e1f20] to-[#2d2f31] border-[#a8c7fa]/40 animate-pulse'
+                  ? 'bg-gradient-to-br from-[#1e1f20] to-[#2d2f31] border-primary/40 animate-pulse'
                   : voiceStatus === 'speaking'
                     ? 'bg-gradient-to-br from-purple-500 to-indigo-600 border-purple-400 scale-105 shadow-purple-500/25'
-                    : 'bg-gradient-to-br from-slate-800 to-slate-900 border-[#303134] hover:border-slate-600 shadow-black/30'
+                    : 'bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 hover:border-slate-600 shadow-black/30'
             }`}>
               
               {/* Central icons representing state */}
@@ -537,7 +537,7 @@ export default function VoiceModeOverlay({
                 <Mic className="w-12 h-12 text-white animate-bounce" />
               )}
               {voiceStatus === 'thinking' && (
-                <Brain className="w-12 h-12 text-[#a8c7fa] animate-spin" style={{ animationDuration: '3s' }} />
+                <Brain className="w-12 h-12 text-primary animate-spin" style={{ animationDuration: '3s' }} />
               )}
               {voiceStatus === 'speaking' && (
                 /* Dynamic sound wave visualizer bars */
@@ -550,7 +550,7 @@ export default function VoiceModeOverlay({
                 </div>
               )}
               {voiceStatus === 'idle' && (
-                <Volume2 className="w-12 h-12 text-[#c4c7c5] group-hover:text-white transition-colors" />
+                <Volume2 className="w-12 h-12 text-slate-300 group-hover:text-white transition-colors" />
               )}
             </div>
           </div>
@@ -575,12 +575,12 @@ export default function VoiceModeOverlay({
 
         {/* Settings Overlay Drawer */}
         {showSettings && (
-          <div className="absolute inset-x-0 bottom-24 bg-[#1e1f20] border-t border-[#303134] p-6 space-y-4 z-20 transition-all transform duration-300 translate-y-0 max-h-[60%] overflow-y-auto scrollbar-thin">
-            <div className="flex items-center justify-between border-b border-[#303134] pb-2 mb-3">
+          <div className="absolute inset-x-0 bottom-24 bg-slate-900 border-t border-slate-700 p-6 space-y-4 z-20 transition-all transform duration-300 translate-y-0 max-h-[60%] overflow-y-auto scrollbar-thin">
+            <div className="flex items-center justify-between border-b border-slate-700 pb-2 mb-3">
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Voice Settings</h4>
               <button 
                 onClick={() => setShowSettings(false)}
-                className="text-xs text-[#a8c7fa] hover:text-[#c2e7ff] font-medium"
+                className="text-xs text-primary hover:text-[#c2e7ff] font-medium"
               >
                 Done
               </button>
@@ -592,7 +592,7 @@ export default function VoiceModeOverlay({
               <select
                 value={selectedLanguage}
                 onChange={(e) => handleLanguageChange(e.target.value)}
-                className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-xl py-2 px-3 text-xs text-slate-200 focus:outline-none"
+                className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-xl py-2 px-3 text-xs text-slate-200 focus:outline-none"
               >
                 {LANGUAGES.map(lang => (
                   <option key={lang.code} value={lang.code}>{lang.name}</option>
@@ -606,7 +606,7 @@ export default function VoiceModeOverlay({
               <select
                 value={selectedVoiceName}
                 onChange={(e) => handleVoiceChange(e.target.value)}
-                className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-xl py-2 px-3 text-xs text-slate-200 focus:outline-none"
+                className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-xl py-2 px-3 text-xs text-slate-200 focus:outline-none"
               >
                 {filteredVoices.length === 0 ? (
                   <option value="">Default Language Voice</option>
@@ -624,7 +624,7 @@ export default function VoiceModeOverlay({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">Speech Rate</label>
-                <span className="text-[10px] font-mono text-[#a8c7fa] bg-[#131314] px-1.5 py-0.5 rounded">{voiceRate.toFixed(1)}x</span>
+                <span className="text-[10px] font-mono text-primary bg-slate-950 px-1.5 py-0.5 rounded">{voiceRate.toFixed(1)}x</span>
               </div>
               <input
                 type="range"
@@ -633,31 +633,31 @@ export default function VoiceModeOverlay({
                 step="0.1"
                 value={voiceRate}
                 onChange={(e) => handleRateChange(parseFloat(e.target.value))}
-                className="w-full h-1 bg-[#2d2f31] rounded-lg appearance-none cursor-pointer accent-[#a8c7fa]"
+                className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
               />
             </div>
 
             {/* Continuous Dialogue and Autoplay Switches */}
             <div className="grid grid-cols-2 gap-4 pt-2">
-              <label className="flex flex-col gap-1 p-2.5 rounded-xl border border-[#303134] bg-[#131314]/40 cursor-pointer">
+              <label className="flex flex-col gap-1 p-2.5 rounded-xl border border-slate-700 bg-slate-950/40 cursor-pointer">
                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Continuous Mode</span>
                 <span className="text-[9px] text-slate-500">Auto-starts mic after AI speaks</span>
                 <input 
                   type="checkbox" 
                   checked={continuousMode}
                   onChange={(e) => handleContinuousChange(e.target.checked)}
-                  className="mt-2 accent-[#a8c7fa] w-4 h-4 cursor-pointer"
+                  className="mt-2 accent-primary w-4 h-4 cursor-pointer"
                 />
               </label>
 
-              <label className="flex flex-col gap-1 p-2.5 rounded-xl border border-[#303134] bg-[#131314]/40 cursor-pointer">
+              <label className="flex flex-col gap-1 p-2.5 rounded-xl border border-slate-700 bg-slate-950/40 cursor-pointer">
                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Auto-Play Voice</span>
                 <span className="text-[9px] text-slate-500">Auto-speak incoming replies</span>
                 <input 
                   type="checkbox" 
                   checked={autoplayEnabled}
                   onChange={(e) => handleAutoplayChange(e.target.checked)}
-                  className="mt-2 accent-[#a8c7fa] w-4 h-4 cursor-pointer"
+                  className="mt-2 accent-primary w-4 h-4 cursor-pointer"
                 />
               </label>
             </div>
@@ -665,14 +665,14 @@ export default function VoiceModeOverlay({
         )}
 
         {/* Bottom Control Bar */}
-        <div className="px-6 py-5 border-t border-[#303134] bg-[#131314] flex items-center justify-around shrink-0">
+        <div className="px-6 py-5 border-t border-slate-700 bg-slate-950 flex items-center justify-around shrink-0">
           {/* Mute Mic */}
           <button
             onClick={handleMicToggle}
             className={`p-3.5 rounded-full transition-all border ${
               isMicMuted
                 ? 'bg-rose-950/20 border-rose-900/50 text-rose-400 hover:bg-rose-950/40'
-                : 'bg-[#2d2f31] border-[#3c4043] text-slate-200 hover:bg-slate-700/50'
+                : 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700/50'
             }`}
             title={isMicMuted ? "Unmute Microphone" : "Mute Microphone"}
           >
@@ -687,7 +687,7 @@ export default function VoiceModeOverlay({
                 ? 'bg-blue-600/10 border-blue-500 text-blue-400 hover:bg-blue-600/20'
                 : voiceStatus === 'speaking'
                   ? 'bg-purple-600/10 border-purple-500 text-purple-400 hover:bg-purple-600/20'
-                  : 'bg-[#a8c7fa] border-[#a8c7fa] text-[#131314] hover:bg-[#c2e7ff] hover:scale-105'
+                  : 'bg-primary border-primary text-[#131314] hover:bg-primary/80 hover:scale-105'
             }`}
           >
             {voiceStatus === 'listening' && 'Listening...'}
@@ -702,7 +702,7 @@ export default function VoiceModeOverlay({
             className={`p-3.5 rounded-full transition-all border ${
               isSpeakerMuted
                 ? 'bg-rose-950/20 border-rose-900/50 text-rose-400 hover:bg-rose-950/40'
-                : 'bg-[#2d2f31] border-[#3c4043] text-slate-200 hover:bg-slate-700/50'
+                : 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700/50'
             }`}
             title={isSpeakerMuted ? "Unmute Speaker" : "Mute Speaker"}
           >
