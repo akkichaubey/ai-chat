@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import SettingsModal from './components/SettingsModal';
@@ -51,15 +51,19 @@ interface Settings {
   persona: string;
   customSystemPrompt: string;
   theme?: string;
+  appearanceMode?: string;
+  provider?: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
   apiKey: '',
-  model: 'gemma-4-31b-it',
+  model: 'gemini-2.5-flash',
   temperature: 0.7,
   persona: 'general',
   customSystemPrompt: 'You are a helpful, precise, and knowledgeable AI assistant.',
-  theme: 'default'
+  theme: 'default',
+  appearanceMode: 'dark',
+  provider: 'gemini'
 };
 
 export default function Home() {
@@ -85,6 +89,7 @@ export default function Home() {
 
   // Streaming state
   const [isLoading, setIsLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Voice mode overlay states
   const [isVoiceModeOpen, setIsVoiceModeOpen] = useState(false);
@@ -130,7 +135,10 @@ export default function Home() {
       const savedProjects = localStorage.getItem('gemma_projects');
       if (savedProjects) {
         try {
-          setProjects(JSON.parse(savedProjects));
+          const parsed = JSON.parse(savedProjects);
+          if (Array.isArray(parsed)) {
+            setProjects(parsed);
+          }
         } catch (e) {
           console.error('Failed to parse projects', e);
         }
@@ -148,24 +156,26 @@ export default function Home() {
       if (savedSessions) {
         try {
           const parsed = JSON.parse(savedSessions);
-          parsedSessions = parsed.map((s: Partial<ChatSession>) => ({
-            id: s.id,
-            title: s.title || 'New Chat',
-            pinned: s.pinned || false,
-            persona: s.persona || loadedSettings.persona || 'general',
-            customSystemPrompt: s.customSystemPrompt || loadedSettings.customSystemPrompt || '',
-            gptId: s.gptId,
-            gptName: s.gptName,
-            gptAvatarEmoji: s.gptAvatarEmoji,
-            gptAvatarBg: s.gptAvatarBg,
-            gptDescription: s.gptDescription,
-            gptStarterPrompts: s.gptStarterPrompts,
-            activeStyle: s.activeStyle || 'normal',
-            activeSkill: s.activeSkill || 'default',
-            thinkingEnabled: s.thinkingEnabled ?? false,
-            webSearchEnabled: s.webSearchEnabled ?? false,
-            projectId: s.projectId
-          }));
+          if (Array.isArray(parsed)) {
+            parsedSessions = parsed.map((s: Partial<ChatSession>) => ({
+              id: s.id || Date.now().toString(),
+              title: s.title || 'New Chat',
+              pinned: s.pinned || false,
+              persona: s.persona || loadedSettings.persona || 'general',
+              customSystemPrompt: s.customSystemPrompt || loadedSettings.customSystemPrompt || '',
+              gptId: s.gptId,
+              gptName: s.gptName,
+              gptAvatarEmoji: s.gptAvatarEmoji,
+              gptAvatarBg: s.gptAvatarBg,
+              gptDescription: s.gptDescription,
+              gptStarterPrompts: s.gptStarterPrompts,
+              activeStyle: s.activeStyle || 'normal',
+              activeSkill: s.activeSkill || 'default',
+              thinkingEnabled: s.thinkingEnabled ?? false,
+              webSearchEnabled: s.webSearchEnabled ?? false,
+              projectId: s.projectId
+            }));
+          }
         } catch (e) {
           console.error('Failed to parse sessions', e);
         }
@@ -175,7 +185,10 @@ export default function Home() {
       const savedCustomGpts = localStorage.getItem('gemma_chat_custom_gpts');
       if (savedCustomGpts) {
         try {
-          setCustomGpts(JSON.parse(savedCustomGpts));
+          const parsed = JSON.parse(savedCustomGpts);
+          if (Array.isArray(parsed)) {
+            setCustomGpts(parsed);
+          }
         } catch (e) {
           console.error('Failed to parse custom GPTs', e);
         }
@@ -231,6 +244,75 @@ export default function Home() {
     return () => clearTimeout(mountTimer);
   }, []);
 
+  // Apply Light/Dark/System appearance mode
+  useEffect(() => {
+    const mode = settings.appearanceMode || 'dark';
+    const applyMode = (isDark: boolean) => {
+      document.documentElement.classList.toggle('light-mode', !isDark);
+    };
+    if (mode === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      applyMode(mq.matches);
+      const handler = (e: MediaQueryListEvent) => applyMode(e.matches);
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    } else {
+      applyMode(mode !== 'light');
+    }
+  }, [settings.appearanceMode]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing inside an input/textarea/contenteditable
+      const tag = (e.target as HTMLElement).tagName;
+      const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable;
+
+      // Ctrl+N or Cmd+N — New Chat
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !e.shiftKey) {
+        e.preventDefault();
+        handleCreateSession();
+        return;
+      }
+      // Ctrl+, — Open Settings
+      if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+        e.preventDefault();
+        setIsSettingsOpen(true);
+        return;
+      }
+      // Ctrl+/ — Toggle Sidebar
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        setIsSidebarOpen(prev => !prev);
+        return;
+      }
+      // Ctrl+K — Toggle Sidebar (also commonly used)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k' && !e.shiftKey) {
+        e.preventDefault();
+        setIsSidebarOpen(prev => !prev);
+        return;
+      }
+      // Ctrl+Shift+F — Open Global Search
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+        return;
+      }
+      // Escape — Close any open modal
+      if (e.key === 'Escape') {
+        if (isSettingsOpen) { setIsSettingsOpen(false); return; }
+        if (isSearchOpen) { setIsSearchOpen(false); return; }
+        if (isPromptLibraryOpen) { setIsPromptLibraryOpen(false); return; }
+        if (isExploreGptsOpen) { setIsExploreGptsOpen(false); return; }
+        if (isProjectModalOpen) { setIsProjectModalOpen(false); return; }
+        if (isVoiceModeOpen) { setIsVoiceModeOpen(false); return; }
+      }
+      void isEditable;
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSettingsOpen, isSearchOpen, isPromptLibraryOpen, isExploreGptsOpen, isProjectModalOpen, isVoiceModeOpen]);
+
   // Synchronize thinkingEnabled and webSearchEnabled states when active session changes
   useEffect(() => {
     const activeSession = sessions.find(s => s.id === activeSessionId);
@@ -255,7 +337,7 @@ export default function Home() {
   };
 
   // 3. Create Session
-  const handleCreateSession = () => {
+  const handleCreateSession = (projectId?: unknown) => {
     const newId = Date.now().toString();
     const newSession: ChatSession = {
       id: newId,
@@ -267,6 +349,7 @@ export default function Home() {
       activeSkill: 'default',
       thinkingEnabled: false,
       webSearchEnabled: false,
+      projectId: typeof projectId === 'string' ? projectId : undefined,
     };
     const updatedSessions = [newSession, ...sessions];
     const updatedMessagesMap = {
@@ -445,10 +528,21 @@ export default function Home() {
     }
   };
 
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  };
+
   // 9. Core Streaming Logic (shared between send, edit, and regenerate)
   const triggerStreaming = async (history: Message[]) => {
     if (!activeSessionId) return;
     setIsLoading(true);
+
+    // Create a new AbortController for this request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     // Synchronize Voice overlay stream states
     setVoiceActiveResponse('');
@@ -520,6 +614,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
         body: JSON.stringify({
           messages: history.map(m => ({
             role: m.role,
@@ -528,6 +623,7 @@ export default function Home() {
           })),
           model: settings.model,
           apiKey: settings.apiKey,
+          provider: settings.provider || 'gemini',
           temperature: settings.temperature,
           systemPrompt: compiledSystemPrompt,
           thinkingEnabled,
@@ -580,26 +676,37 @@ export default function Home() {
       setVoiceIsFinished(true);
 
     } catch (error) {
-      console.error('Error during chat stream:', error);
       const err = error as Error;
-      const errorMsg = `[ERROR] An error occurred: ${err.message || 'Check your API Key settings.'}`;
-      setVoiceActiveResponse(errorMsg);
-      setVoiceIsFinished(true);
+      // If aborted by user — preserve partial content, don't show error
+      if (err.name === 'AbortError') {
+        setMessagesMap((prev) => {
+          const newMap = { ...prev };
+          saveMessagesToLocalStorage(newMap);
+          return newMap;
+        });
+        setVoiceIsFinished(true);
+      } else {
+        console.error('Error during chat stream:', err);
+        const errorMsg = `[ERROR] An error occurred: ${err.message || 'Check your API Key settings.'}`;
+        setVoiceActiveResponse(errorMsg);
+        setVoiceIsFinished(true);
 
-      setMessagesMap((prev) => {
-        const prevMsgs = prev[activeSessionId] || [];
-        const updated = prevMsgs.map((m) =>
-          m.id === assistantMessageId 
-            ? { ...m, content: errorMsg } 
-            : m
-        );
-        const newMap = { ...prev, [activeSessionId]: updated };
-        saveMessagesToLocalStorage(newMap);
-        return newMap;
-      });
+        setMessagesMap((prev) => {
+          const prevMsgs = prev[activeSessionId] || [];
+          const updated = prevMsgs.map((m) =>
+            m.id === assistantMessageId 
+              ? { ...m, content: errorMsg } 
+              : m
+          );
+          const newMap = { ...prev, [activeSessionId]: updated };
+          saveMessagesToLocalStorage(newMap);
+          return newMap;
+        });
+      }
     } finally {
       setIsLoading(false);
       setVoiceIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -841,6 +948,22 @@ User Statement: "${content}"`;
     await triggerStreaming(finalHistory);
   };
 
+  // Delete Message
+  const handleDeleteMessage = (messageId: string) => {
+    if (!activeSessionId) return;
+    const currentMessages = messagesMap[activeSessionId] || [];
+    const updated = currentMessages.filter(m => m.id !== messageId);
+    setMessagesMap(prev => ({
+      ...prev,
+      [activeSessionId]: updated
+    }));
+    const newMap = {
+      ...messagesMap,
+      [activeSessionId]: updated
+    };
+    saveMessagesToLocalStorage(newMap);
+  };
+
   // Custom GPT handlers
   const handleSaveGpt = (savedGpt: CustomGpt) => {
     setCustomGpts(prev => {
@@ -981,6 +1104,7 @@ User Statement: "${content}"`;
         }}
         onDeleteProject={handleDeleteProject}
         onMoveSessionToProject={handleMoveSessionToProject}
+        onCreateSessionInProject={handleCreateSession}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenPromptLibrary={() => setIsPromptLibraryOpen(true)}
       />
@@ -989,6 +1113,7 @@ User Statement: "${content}"`;
         messages={activeMessages}
         isLoading={isLoading}
         onSendMessage={handleSendMessage}
+        onStopGeneration={handleStopGeneration}
         activeModelName={activeModelFriendlyName}
         onOpenSettings={() => setIsSettingsOpen(true)}
         thinkingEnabled={thinkingEnabled}
@@ -997,6 +1122,7 @@ User Statement: "${content}"`;
         setWebSearchEnabled={handleWebSearchToggle}
         onEditMessage={handleEditMessage}
         onRegenerateMessage={handleRegenerateMessage}
+        onDeleteMessage={handleDeleteMessage}
         activeSessionTitle={activeSessionTitle}
         onOpenVoiceMode={() => setIsVoiceModeOpen(true)}
         selectedModel={settings.model}
@@ -1023,10 +1149,6 @@ User Statement: "${content}"`;
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={handleSaveSettings}
-        sessionsCount={sessions.length}
-        projectsCount={projects.length}
-        assistantsCount={customGpts.length}
-        messagesCount={Object.values(messagesMap).reduce((acc, curr) => acc + (curr ? curr.length : 0), 0)}
       />
 
       {/* ChatGPT-Style Voice Mode Overlay */}

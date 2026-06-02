@@ -98,17 +98,17 @@ export default function SearchModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 font-sans select-none animate-in fade-in duration-200">
       <div className="fixed inset-0" onClick={onClose} />
       
-      <div className="relative w-full max-w-xl bg-[#1e1f20] border border-[#303134] rounded-3xl p-6 shadow-2xl shadow-black/60 space-y-4 flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-xl bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl shadow-black/60 space-y-4 flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#303134] pb-3 shrink-0">
-          <div className="flex items-center gap-2.5 text-[#a8c7fa]">
+        <div className="flex items-center justify-between border-b border-slate-700 pb-3 shrink-0">
+          <div className="flex items-center gap-2.5 text-primary">
             <Search className="w-5 h-5" />
             <h3 className="text-lg font-bold text-slate-100 tracking-tight">Global Workspace Search</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-[#2d2f31] text-slate-400 hover:text-slate-200 transition-colors"
+            className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -122,13 +122,13 @@ export default function SearchModal({
             placeholder="Type keywords to search chats and messages contents..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-2.5 pl-11 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none transition-all"
+            className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-2xl py-2.5 pl-11 pr-4 text-xs text-slate-100 placeholder-slate-600 focus:outline-none transition-all"
             autoFocus
           />
         </div>
 
         {/* Filter Toolbar Controls */}
-        <div className="grid grid-cols-3 gap-2.5 shrink-0 bg-[#131314]/50 p-3 rounded-2xl border border-[#303134]/30">
+        <div className="grid grid-cols-3 gap-2.5 shrink-0 bg-slate-950/50 p-3 rounded-2xl border border-slate-700/30">
           {/* Project selection */}
           <div className="flex flex-col gap-1">
             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider pl-1 flex items-center gap-1">
@@ -137,7 +137,7 @@ export default function SearchModal({
             <select
               value={filterProjectId}
               onChange={(e) => setFilterProjectId(e.target.value)}
-              className="bg-[#131314] border border-[#303134] rounded-xl py-1.5 px-2.5 text-[10px] text-slate-300 focus:outline-none"
+              className="bg-slate-950 border border-slate-700 rounded-xl py-1.5 px-2.5 text-[10px] text-slate-300 focus:outline-none"
             >
               <option value="all">All Projects</option>
               {projects.map(p => (
@@ -154,7 +154,7 @@ export default function SearchModal({
             <select
               value={filterDateRange}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterDateRange(e.target.value as 'all' | 'today' | '7days' | '30days')}
-              className="bg-[#131314] border border-[#303134] rounded-xl py-1.5 px-2.5 text-[10px] text-slate-300 focus:outline-none"
+              className="bg-slate-950 border border-slate-700 rounded-xl py-1.5 px-2.5 text-[10px] text-slate-300 focus:outline-none"
             >
               <option value="all">Anytime</option>
               <option value="today">Today Only</option>
@@ -171,7 +171,7 @@ export default function SearchModal({
             <select
               value={filterPersona}
               onChange={(e) => setFilterPersona(e.target.value)}
-              className="bg-[#131314] border border-[#303134] rounded-xl py-1.5 px-2.5 text-[10px] text-slate-300 focus:outline-none"
+              className="bg-slate-950 border border-slate-700 rounded-xl py-1.5 px-2.5 text-[10px] text-slate-300 focus:outline-none"
             >
               <option value="all">All Personas</option>
               <option value="general">General</option>
@@ -199,10 +199,10 @@ export default function SearchModal({
                     onSelectSession(session.id);
                     onClose();
                   }}
-                  className="p-3 bg-[#131314]/30 hover:bg-[#212121]/60 border border-[#303134]/30 hover:border-neutral-700/80 rounded-2xl cursor-pointer transition-all flex items-center justify-between group"
+                  className="p-3 bg-slate-950/30 hover:bg-slate-900/60 border border-slate-700/30 hover:border-neutral-700/80 rounded-2xl cursor-pointer transition-all flex items-center justify-between group"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1 pr-4">
-                    <MessageSquare className="w-4 h-4 text-slate-500 shrink-0 group-hover:text-[#a8c7fa] transition-colors" />
+                    <MessageSquare className="w-4 h-4 text-slate-500 shrink-0 group-hover:text-primary transition-colors" />
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-semibold text-slate-200 truncate group-hover:text-white transition-colors">
                         {session.title}
@@ -210,7 +210,7 @@ export default function SearchModal({
                       <div className="text-[9px] text-slate-500 flex items-center gap-2 mt-0.5 select-none font-sans">
                         <span>{sessionMsgs.length} messages</span>
                         {project && (
-                          <span className="flex items-center gap-0.5 text-[#a8c7fa] font-bold">
+                          <span className="flex items-center gap-0.5 text-primary font-bold">
                             <Folder className="w-2.5 h-2.5" /> {project.name}
                           </span>
                         )}

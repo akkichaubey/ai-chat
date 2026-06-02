@@ -59,11 +59,11 @@ export default function ProjectModal({
         className="fixed inset-0" 
         onClick={onClose}
       />
-      <div className="relative w-full max-w-lg bg-[#1e1f20] border border-[#303134] rounded-3xl p-6 shadow-2xl shadow-black/60 space-y-6 flex flex-col justify-center animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl shadow-black/60 space-y-6 flex flex-col justify-center animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#303134] pb-4">
-          <div className="flex items-center gap-2.5 text-[#a8c7fa]">
+        <div className="flex items-center justify-between border-b border-slate-700 pb-4">
+          <div className="flex items-center gap-2.5 text-primary">
             <FolderPlus className="w-5 h-5" />
             <h3 className="text-lg font-bold text-slate-100 tracking-tight">
               {project ? 'Edit Project Workspace' : 'Create Project Workspace'}
@@ -71,7 +71,7 @@ export default function ProjectModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-[#2d2f31] text-slate-400 hover:text-slate-200 transition-colors"
+            className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
             title="Close"
           >
             <X className="w-4 h-4" />
@@ -91,7 +91,7 @@ export default function ProjectModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-2.5 px-4 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa] transition-all font-sans"
+              className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-2xl py-2.5 px-4 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-primary transition-all font-sans"
             />
           </div>
 
@@ -105,7 +105,7 @@ export default function ProjectModal({
               placeholder="Brief description of this project's purpose..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-2.5 px-4 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa] transition-all font-sans"
+              className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-2xl py-2.5 px-4 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-primary transition-all font-sans"
             />
           </div>
 
@@ -117,7 +117,7 @@ export default function ProjectModal({
               </label>
               <div className="group relative flex items-center cursor-help">
                 <Info className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300 transition-colors" />
-                <div className="absolute right-0 bottom-6 z-50 hidden group-hover:block w-64 bg-[#2d2f31] border border-[#3c4043] rounded-xl p-3 shadow-xl text-[10px] text-slate-300 font-normal leading-relaxed">
+                <div className="absolute right-0 bottom-6 z-50 hidden group-hover:block w-64 bg-slate-800 border border-slate-600 rounded-xl p-3 shadow-xl text-[10px] text-slate-300 font-normal leading-relaxed">
                   These instructions are automatically appended to all chats inside this project. Define rules, preferences, tech stacks, or business facts so the AI never forgets them.
                 </div>
               </div>
@@ -127,23 +127,23 @@ export default function ProjectModal({
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
               rows={4}
-              className="w-full bg-[#131314] border border-[#303134] focus:border-[#a8c7fa] rounded-2xl py-3 px-4 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa] transition-all font-sans resize-none scrollbar-thin"
+              className="w-full bg-slate-950 border border-slate-700 focus:border-primary rounded-2xl py-3 px-4 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-primary transition-all font-sans resize-none scrollbar-thin"
             />
           </div>
 
           {/* Actions Footer */}
-          <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#303134]">
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-700">
             <button
               type="button"
               onClick={onClose}
-              className="py-2.5 px-5 rounded-2xl border border-[#303134] hover:bg-[#2d2f31] hover:border-[#3c4043] text-xs font-semibold text-slate-300 transition-all cursor-pointer"
+              className="py-2.5 px-5 rounded-2xl border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-xs font-semibold text-slate-300 transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!name.trim()}
-              className="py-2.5 px-5 rounded-2xl bg-[#a8c7fa] text-[#131314] font-semibold text-xs hover:bg-[#c2e7ff] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md flex items-center gap-1.5 hover:scale-[1.01]"
+              className="py-2.5 px-5 rounded-2xl bg-primary text-[#131314] font-semibold text-xs hover:bg-primary/80 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md flex items-center gap-1.5 hover:scale-[1.01]"
             >
               <Save className="w-3.5 h-3.5" />
               {project ? 'Save Changes' : 'Create Project'}

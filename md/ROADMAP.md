@@ -116,15 +116,22 @@
 #### 1. Implementation Tasks
 - [x] Project creation and management in localStorage
 - [x] Chat assignment to projects
+- [x] Direct chat creation pre-assigned to a project workspace
+- [x] Sidebar collapsible project rendering with dynamic rounded corner system
+- [x] Resolved 3-dot option dropdown overflow clipping inside project item wrappers
 - [x] Automatic context injection into AI prompts
 
 #### 2. Test Cases & Verification Plan
 * **Test Case 1**: Assign a conversation to a project that has custom context instructions.
   * **Expected Output**: The project's system prompt instructions are appended to subsequent AI payloads automatically.
   * **Status**: `[x] Passed`
+* **Test Case 2**: Create a chat directly inside a project and trigger options menu.
+  * **Expected Output**: A new chat session is initialized with the project's ID pre-assigned, and clicking the 3-dot dropdown shows the actions list cleanly without any visual clipping.
+  * **Status**: `[x] Passed`
 
 #### 3. Testing Notes & Issues Found
-- *No issues found. Prompts are successfully injected at the controller layer, ensuring workspace isolation.*
+- *Visual clipping issue on nested chat option dropdown menus was resolved by removing `overflow-hidden` on parent wrappers and handling rounded boundaries dynamically.*
+- *Defensive click handler wrappers added to eliminate optional callback function execution console errors.*
 
 ---
 

@@ -62,6 +62,7 @@ interface SidebarProps {
   onEditProject?: (project: Project) => void;
   onDeleteProject?: (id: string) => void;
   onMoveSessionToProject?: (sessionId: string, projectId?: string) => void;
+  onCreateSessionInProject?: (projectId: string) => void;
   onOpenSearch?: () => void;
   onOpenPromptLibrary?: () => void;
 }
@@ -85,12 +86,12 @@ export default function Sidebar({
   onEditProject,
   onDeleteProject,
   onMoveSessionToProject,
+  onCreateSessionInProject,
   onOpenSearch,
   onOpenPromptLibrary
 }: SidebarProps) {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [tempTitle, setTempTitle] = useState('');
-  const searchQuery = '';
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [isMoveToProjectOpen, setIsMoveToProjectOpen] = useState(false);
@@ -117,16 +118,11 @@ export default function Sidebar({
     setEditingSessionId(null);
   };
 
-  // Filter sessions by search query
-  const filteredSessions = sessions.filter(session => 
-    session.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSessions = sessions;
 
-  // Group into pinned and unpinned (excluding project chats)
   const pinnedSessions = filteredSessions.filter(s => s.pinned && !s.projectId);
   const unpinnedSessions = filteredSessions.filter(s => !s.pinned && !s.projectId);
 
-  // Helper to group unpinned sessions chronologically
   const getChronologicalGroup = (id: string): string => {
     const timestamp = parseInt(id, 10);
     if (isNaN(timestamp)) return 'Recent';
@@ -134,7 +130,6 @@ export default function Sidebar({
     const now = new Date();
     const date = new Date(timestamp);
 
-    // Strip time parts to compare dates only
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
     const yesterday = new Date(today);
@@ -172,7 +167,6 @@ export default function Sidebar({
     }
   });
 
-  // Render a badge based on persona
   const renderPersonaBadge = (persona?: string) => {
     if (!persona || persona === 'general') return null;
     
@@ -182,15 +176,15 @@ export default function Sidebar({
 
     if (persona === 'writer') {
       label = 'Writer';
-      classes = 'text-[9px] font-semibold px-1.5 py-0.5 rounded bg-violet-950/60 border border-violet-850/40 text-violet-300';
+      classes = 'text-[9px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 dark:text-indigo-300';
       Icon = Compass;
     } else if (persona === 'code') {
       label = 'Code';
-      classes = 'text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-850/40 text-emerald-300';
+      classes = 'text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400';
       Icon = Code;
     } else if (persona === 'custom') {
       label = 'Custom';
-      classes = 'text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-950/60 border border-amber-850/40 text-amber-300';
+      classes = 'text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400';
       Icon = Sparkles;
     } else {
       return null;
@@ -215,12 +209,12 @@ export default function Sidebar({
         onClick={() => onSelectSession(session.id)}
         className={`group relative flex items-center justify-between py-2 px-2.5 mx-2 rounded-lg cursor-pointer transition-all duration-155 select-none ${
           isActive 
-            ? 'bg-[#212121] text-white font-medium shadow-sm' 
-            : 'text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121]/40 border border-transparent'
+            ? 'bg-slate-800 text-slate-100 font-semibold shadow-sm' 
+            : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40 border border-transparent'
         }`}
       >
         <div className="flex items-center gap-2.5 flex-1 min-w-0 pr-6">
-          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-neutral-200' : 'text-neutral-500 opacity-60 group-hover:opacity-100'}`} />
+          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-slate-200' : 'text-slate-500 opacity-60 group-hover:opacity-100'}`} />
           
           {isEditing ? (
             <form 
@@ -232,7 +226,7 @@ export default function Sidebar({
                 type="text"
                 value={tempTitle}
                 onChange={(e) => setTempTitle(e.target.value)}
-                className="w-full bg-[#0d0d0d] border border-neutral-700 text-xs px-2 py-1 rounded focus:outline-none focus:ring-1 focus:ring-neutral-500 text-slate-200 font-sans"
+                className="w-full bg-slate-950 border border-slate-700 text-xs px-2 py-1 rounded focus:outline-none focus:ring-1 focus:ring-primary text-slate-200 font-sans"
                 autoFocus
               />
             </form>
@@ -249,9 +243,8 @@ export default function Sidebar({
         {/* Three-dots menu for actions (Pin, Rename, Delete) */}
         {!isEditing && (
           <div className="absolute right-2 flex items-center">
-            {/* Show Pin icon if pinned and dropdown/hover is not active */}
             {session.pinned && !isDropdownOpen && (
-              <Pin className="w-3.5 h-3.5 fill-[#a8c7fa] text-[#a8c7fa] group-hover:opacity-0 transition-opacity mr-1" />
+              <Pin className="w-3.5 h-3.5 fill-primary text-primary group-hover:opacity-0 transition-opacity mr-1" />
             )}
             
             <button
@@ -259,8 +252,8 @@ export default function Sidebar({
                 e.stopPropagation();
                 setActiveDropdownId(isDropdownOpen ? null : session.id);
               }}
-              className={`p-1 rounded text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-all ${
-                isDropdownOpen ? 'opacity-100 text-neutral-200 bg-neutral-800' : 'opacity-0 group-hover:opacity-100'
+              className={`p-1 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-700 transition-all ${
+                isDropdownOpen ? 'opacity-100 text-slate-200 bg-slate-700' : 'opacity-0 group-hover:opacity-100'
               }`}
               title="Options"
             >
@@ -269,7 +262,6 @@ export default function Sidebar({
 
             {isDropdownOpen && (
               <>
-                {/* Backdrop to close dropdown on click outside */}
                 <div 
                   className="fixed inset-0 z-40 cursor-default" 
                   onClick={(e) => {
@@ -278,7 +270,7 @@ export default function Sidebar({
                   }}
                 />
                 <div 
-                  className="absolute right-0 top-7 z-50 bg-[#1e1f20] border border-[#303134] rounded-2xl shadow-2xl p-1.5 w-36 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 select-none"
+                  className="absolute right-0 top-7 z-50 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-1.5 w-36 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-0.5 select-none"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -287,9 +279,9 @@ export default function Sidebar({
                       onTogglePinSession(session.id);
                       setActiveDropdownId(null);
                     }}
-                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-slate-300 hover:text-white hover:bg-[#2d2f31]/80 rounded-xl transition-all cursor-pointer"
+                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-slate-350 hover:text-slate-100 hover:bg-slate-800/80 rounded-xl transition-all cursor-pointer"
                   >
-                    <Pin className={`w-3.5 h-3.5 text-slate-400 ${session.pinned ? 'fill-current text-[#a8c7fa]' : ''}`} />
+                    <Pin className={`w-3.5 h-3.5 text-slate-450 ${session.pinned ? 'fill-current text-primary' : ''}`} />
                     {session.pinned ? 'Unpin' : 'Pin'}
                   </button>
                   <button
@@ -298,9 +290,9 @@ export default function Sidebar({
                       handleStartRename(e, session.id, session.title);
                       setActiveDropdownId(null);
                     }}
-                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-slate-300 hover:text-white hover:bg-[#2d2f31]/80 rounded-xl transition-all cursor-pointer"
+                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-slate-350 hover:text-slate-100 hover:bg-slate-800/80 rounded-xl transition-all cursor-pointer"
                   >
-                    <Edit3 className="w-3.5 h-3.5 text-slate-400" />
+                    <Edit3 className="w-3.5 h-3.5 text-slate-450" />
                     Rename
                   </button>
                   <button
@@ -310,9 +302,9 @@ export default function Sidebar({
                       setIsMoveToProjectOpen(true);
                       setActiveDropdownId(null);
                     }}
-                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-slate-300 hover:text-white hover:bg-[#2d2f31]/80 rounded-xl transition-all cursor-pointer"
+                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-slate-350 hover:text-slate-100 hover:bg-slate-800/80 rounded-xl transition-all cursor-pointer"
                   >
-                    <FolderInput className="w-3.5 h-3.5 text-slate-400" />
+                    <FolderInput className="w-3.5 h-3.5 text-slate-450" />
                     Move to...
                   </button>
                   <button
@@ -321,9 +313,9 @@ export default function Sidebar({
                       onDeleteSession(session.id);
                       setActiveDropdownId(null);
                     }}
-                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-rose-450 hover:bg-rose-950/20 rounded-xl transition-all cursor-pointer"
+                    className="flex items-center gap-2.5 w-full px-2.5 py-2 text-left text-xs font-semibold text-rose-500 hover:bg-rose-950/20 rounded-xl transition-all cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                     Delete
                   </button>
                 </div>
@@ -336,13 +328,13 @@ export default function Sidebar({
           <div className="absolute right-2 flex items-center gap-1">
             <button
               onClick={(e) => handleSaveRename(e, session.id)}
-              className="p-1 rounded text-emerald-450 hover:bg-emerald-950/20 transition-colors"
+              className="p-1 rounded text-emerald-500 hover:bg-emerald-950/20 transition-colors"
             >
               <Check className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={handleCancelRename}
-              className="p-1 rounded text-rose-450 hover:bg-rose-950/20 transition-colors"
+              className="p-1 rounded text-rose-500 hover:bg-rose-950/20 transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -364,17 +356,17 @@ export default function Sidebar({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed md:relative inset-y-0 left-0 z-40 flex flex-col h-full bg-[#171717] border-r border-neutral-800/40 transition-all duration-300 ease-in-out ${
+        className={`fixed md:relative inset-y-0 left-0 z-40 flex flex-col h-full bg-slate-950 border-r border-slate-800 transition-all duration-300 ease-in-out sidebar-container ${
           isOpen ? 'w-[260px] translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 md:w-[68px] overflow-visible'
         }`}
       >
         {isOpen ? (
           <>
-        {/* Top Header Row (ChatGPT Style: Close button & New Chat button) */}
+        {/* Top Header Row (Close button & New Chat button) */}
         <div className="flex items-center justify-between p-3.5 h-[60px] shrink-0 text-slate-200">
           <button
             onClick={onToggleOpen}
-            className="p-2 rounded-lg text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
             title="Close sidebar"
           >
             <PanelLeftClose className="w-5 h-5" />
@@ -382,7 +374,7 @@ export default function Sidebar({
           
           <button
             onClick={onCreateSession}
-            className="p-2 rounded-lg text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
             title="New chat"
           >
             <SquarePen className="w-5 h-5" />
@@ -390,14 +382,17 @@ export default function Sidebar({
         </div>
 
         {/* Search Session Bar */}
-        <div className="px-3.5 mb-2.5 shrink-0" onClick={onOpenSearch}>
+        <div 
+          className="px-3.5 mb-2.5 shrink-0 cursor-pointer" 
+          onClick={() => onOpenSearch && onOpenSearch()}
+        >
           <div className="relative flex items-center cursor-pointer">
-            <Search className="absolute left-3 w-3.5 h-3.5 text-neutral-500" />
+            <Search className="absolute left-3 w-3.5 h-3.5 text-slate-550" />
             <input
               type="text"
               placeholder="Search chats & contents..."
               readOnly
-              className="w-full bg-[#212121]/60 border border-transparent focus:border-neutral-800 rounded-lg py-1.5 pl-9 pr-8 text-xs text-[#ececf1] placeholder-neutral-500 cursor-pointer focus:outline-none transition-colors"
+              className="w-full bg-slate-900/60 border border-transparent focus:border-slate-700 rounded-lg py-1.5 pl-9 pr-8 text-xs text-slate-100 placeholder-slate-550 cursor-pointer focus:outline-none transition-colors"
             />
           </div>
         </div>
@@ -406,25 +401,25 @@ export default function Sidebar({
         <div className="px-3.5 mb-3.5 shrink-0 grid grid-cols-2 gap-2 select-none">
           <button
             onClick={onOpenExploreGpts}
-            className="group flex flex-col items-center justify-center gap-1.5 w-full py-3 px-2 rounded-xl bg-[#212121]/30 hover:bg-[#2d2f31]/60 border border-neutral-800/40 hover:border-[#a8c7fa]/30 transition-all duration-300 cursor-pointer shadow-sm text-center"
+            className="group flex flex-col items-center justify-center gap-1.5 w-full py-3 px-2 rounded-xl bg-slate-900/30 hover:bg-slate-800/60 border border-slate-800/45 hover:border-primary/35 transition-all duration-300 cursor-pointer shadow-sm text-center"
           >
-            <div className="w-7 h-7 rounded-lg bg-[#a8c7fa]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Compass className="w-4 h-4 text-[#a8c7fa]" />
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Compass className="w-4 h-4 text-primary" />
             </div>
             <div className="flex flex-col">
-              <span className="text-[11px] font-bold text-slate-255 leading-none group-hover:text-white transition-colors">Explore GPTs</span>
+              <span className="text-[11px] font-bold text-slate-200 leading-none group-hover:text-white transition-colors">Explore GPTs</span>
               <span className="text-[8px] text-slate-500 mt-1 font-sans leading-none">Custom Agents</span>
             </div>
           </button>
           <button
-            onClick={onOpenPromptLibrary}
-            className="group flex flex-col items-center justify-center gap-1.5 w-full py-3 px-2 rounded-xl bg-[#212121]/30 hover:bg-[#2d2f31]/60 border border-neutral-800/40 hover:border-[#a8c7fa]/30 transition-all duration-300 cursor-pointer shadow-sm text-center"
+            onClick={() => onOpenPromptLibrary && onOpenPromptLibrary()}
+            className="group flex flex-col items-center justify-center gap-1.5 w-full py-3 px-2 rounded-xl bg-slate-900/30 hover:bg-slate-800/60 border border-slate-800/45 hover:border-primary/35 transition-all duration-300 cursor-pointer shadow-sm text-center"
           >
             <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
               <Sparkles className="w-4 h-4 text-amber-400" />
             </div>
             <div className="flex flex-col">
-              <span className="text-[11px] font-bold text-slate-255 leading-none group-hover:text-white transition-colors">Prompt Lib</span>
+              <span className="text-[11px] font-bold text-slate-200 leading-none group-hover:text-white transition-colors">Prompt Lib</span>
               <span className="text-[8px] text-slate-500 mt-1 font-sans leading-none">Templates</span>
             </div>
           </button>
@@ -432,15 +427,15 @@ export default function Sidebar({
 
         {/* Projects Section */}
         <div className="px-3.5 mb-3.5 shrink-0 pb-3">
-          <div className="flex items-center justify-between text-neutral-400 mb-2 px-1 pb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5 select-none">
-              <FolderOpen className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
+          <div className="flex items-center justify-between text-slate-400 mb-2 px-1 pb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5 select-none">
+              <FolderOpen className="w-3.5 h-3.5 text-slate-500 shrink-0" />
               Project Workspaces
             </span>
             {onCreateProject && (
               <button 
                 onClick={onCreateProject}
-                className="p-1 rounded-lg bg-[#212121]/30 hover:bg-[#a8c7fa]/10 text-slate-400 hover:text-[#a8c7fa] border border-neutral-800/40 hover:border-[#a8c7fa]/20 transition-all cursor-pointer"
+                className="p-1 rounded-lg bg-slate-900/30 hover:bg-primary/10 text-slate-400 hover:text-primary border border-slate-800 hover:border-primary/20 transition-all cursor-pointer"
                 title="Create Project"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -450,10 +445,10 @@ export default function Sidebar({
           <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-thin">
             {projects.length === 0 ? (
               <div 
-                onClick={onCreateProject}
-                className="group flex flex-col items-center justify-center p-3.5 rounded-xl border border-dashed border-neutral-800/60 hover:border-[#a8c7fa]/30 bg-[#212121]/10 hover:bg-[#212121]/30 transition-all duration-300 cursor-pointer select-none text-center"
+                onClick={() => onCreateProject && onCreateProject()}
+                className="group flex flex-col items-center justify-center p-3.5 rounded-xl border border-dashed border-slate-800 hover:border-primary/30 bg-slate-900/10 hover:bg-slate-900/30 transition-all duration-300 cursor-pointer select-none text-center"
               >
-                <FolderPlus className="w-5 h-5 text-neutral-600 group-hover:text-slate-400 transition-colors mb-1.5" />
+                <FolderPlus className="w-5 h-5 text-slate-600 group-hover:text-slate-400 transition-colors mb-1.5" />
                 <span className="text-[10px] font-bold text-slate-400 group-hover:text-slate-350 transition-colors">Create Workspace</span>
                 <span className="text-[8px] text-slate-600 group-hover:text-slate-500 transition-colors mt-0.5 max-w-[170px]">Organize and custom-instruct your chat sessions</span>
               </div>
@@ -463,29 +458,45 @@ export default function Sidebar({
                 const projectSessions = filteredSessions.filter(s => s.projectId === project.id);
                 
                 return (
-                  <div key={project.id} className="rounded-lg overflow-hidden bg-neutral-900/30 border border-neutral-800/20">
+                  <div key={project.id} className="rounded-lg bg-slate-950/30 border border-slate-800/40 relative">
                     <div 
                       onClick={() => setExpandedProjects(prev => ({ ...prev, [project.id]: !isExpanded }))}
-                      className="group flex items-center justify-between py-1.5 px-2 hover:bg-[#212121]/30 cursor-pointer select-none text-xs"
+                      className={`group flex items-center justify-between py-1.5 px-2 hover:bg-slate-900/30 cursor-pointer select-none text-xs ${
+                        isExpanded ? 'rounded-t-lg' : 'rounded-lg'
+                      }`}
                     >
-                      <div className="flex items-center gap-1.5 text-neutral-300 font-semibold truncate flex-1 pr-2">
-                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-neutral-500" /> : <ChevronRight className="w-3.5 h-3.5 text-neutral-500" />}
-                        {isExpanded ? <FolderOpen className="w-3.5 h-3.5 text-[#a8c7fa]" /> : <Folder className="w-3.5 h-3.5 text-[#a8c7fa]" />}
+                      <div className="flex items-center gap-1.5 text-slate-300 font-semibold truncate flex-1 pr-2">
+                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-slate-550" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-550" />}
+                        {isExpanded ? <FolderOpen className="w-3.5 h-3.5 text-primary" /> : <Folder className="w-3.5 h-3.5 text-primary" />}
                         <span className="truncate" title={project.name}>{project.name}</span>
                         {projectSessions.length > 0 && (
-                          <span className="text-[9px] bg-neutral-800 text-neutral-400 px-1 rounded-full">{projectSessions.length}</span>
+                          <span className="text-[9px] bg-slate-800 text-slate-400 px-1 rounded-full">{projectSessions.length}</span>
                         )}
                       </div>
                       
-                      {/* Project actions (Edit, Delete) on hover */}
+                      {/* Project actions (New Chat, Edit, Delete) on hover */}
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {onCreateSessionInProject && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCreateSessionInProject(project.id);
+                              // Auto expand project so user can see the new chat session in the list
+                              setExpandedProjects(prev => ({ ...prev, [project.id]: true }));
+                            }}
+                            className="p-0.5 rounded text-slate-550 hover:text-white hover:bg-slate-800 cursor-pointer"
+                            title="New Chat in Project"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        )}
                         {onEditProject && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onEditProject(project);
                             }}
-                            className="p-0.5 rounded text-neutral-500 hover:text-white hover:bg-neutral-850 cursor-pointer"
+                            className="p-0.5 rounded text-slate-550 hover:text-white hover:bg-slate-800 cursor-pointer"
                             title="Edit project"
                           >
                             <Edit3 className="w-3 h-3" />
@@ -499,7 +510,7 @@ export default function Sidebar({
                                 onDeleteProject(project.id);
                               }
                             }}
-                            className="p-0.5 rounded text-neutral-500 hover:text-rose-450 hover:bg-rose-950/20 cursor-pointer"
+                            className="p-0.5 rounded text-slate-550 hover:text-rose-500 hover:bg-rose-950/20 cursor-pointer"
                             title="Delete project"
                           >
                             <Trash2 className="w-3 h-3" />
@@ -510,11 +521,19 @@ export default function Sidebar({
                     
                     {/* Collapsible Nested Chats */}
                     {isExpanded && (
-                      <div className="pl-2.5 pr-1 py-1 space-y-0.5 bg-neutral-950/20 border-t border-neutral-800/10">
+                      <div className="pl-2.5 pr-1 py-1 space-y-0.5 bg-slate-950/20 border-t border-slate-800/10 rounded-b-lg">
                         {projectSessions.length === 0 ? (
-                          <div className="text-[10px] text-neutral-600 italic px-2 py-1 select-none">
-                            No chats in this project.
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onCreateSessionInProject) {
+                                onCreateSessionInProject(project.id);
+                              }
+                            }}
+                            className="w-full text-left text-[10px] text-slate-600 hover:text-primary italic px-2 py-1 select-none cursor-pointer flex items-center gap-1 hover:bg-slate-800/30 rounded-md transition-colors"
+                          >
+                            <Plus className="w-2.5 h-2.5" /> No chats. Click to add one.
+                          </button>
                         ) : (
                           projectSessions.map(session => renderSessionItem(session))
                         )}
@@ -530,16 +549,16 @@ export default function Sidebar({
         {/* Chat List Grouped Chronologically */}
         <div className="flex-1 overflow-y-auto px-1 space-y-4 mb-2 scrollbar-thin">
           {filteredSessions.length === 0 ? (
-            <div className="text-center text-xs text-neutral-500 py-8 px-4 font-sans leading-relaxed">
-              {searchQuery ? 'No matching chats found.' : 'No conversations yet.'}
+            <div className="text-center text-xs text-slate-500 py-8 px-4 font-sans leading-relaxed">
+              {'No conversations yet.'}
             </div>
           ) : (
             <div className="space-y-4">
               {/* Pinned Chats Section */}
               {pinnedSessions.length > 0 && (
                 <div className="space-y-0.5">
-                  <div className="px-4 text-[10px] font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5 mb-1.5 mt-1 select-none">
-                    <Pin className="w-2.5 h-2.5 text-[#a8c7fa]" /> Pinned
+                  <div className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1.5 mt-1 select-none">
+                    <Pin className="w-2.5 h-2.5 text-primary" /> Pinned
                   </div>
                   {pinnedSessions.map(renderSessionItem)}
                 </div>
@@ -552,7 +571,7 @@ export default function Sidebar({
 
                 return (
                   <div key={groupName} className="space-y-0.5">
-                    <div className="px-4 text-[10px] font-bold text-neutral-500 tracking-wider mb-1.5 mt-2 select-none">
+                    <div className="px-4 text-[10px] font-bold text-slate-500 tracking-wider mb-1.5 mt-2 select-none">
                       {groupName}
                     </div>
                     {groupSessions.map(renderSessionItem)}
@@ -563,11 +582,11 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Footer ChatGPT style User Settings row */}
-        <div className="p-3.5 bg-[#171717] border-t border-neutral-800/40 shrink-0 space-y-2">
+        {/* User Settings Footer */}
+        <div className="p-3.5 bg-slate-950 border-t border-slate-800 shrink-0 space-y-2 sidebar-footer-row">
           <button
             onClick={onOpenSettings}
-            className="flex items-center gap-3 w-full py-2 px-2.5 rounded-lg text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all text-sm cursor-pointer border border-transparent"
+            className="flex items-center gap-3 w-full py-2 px-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all text-sm cursor-pointer border border-transparent"
           >
             {userProfile?.avatar_url ? (
               <img 
@@ -576,23 +595,23 @@ export default function Sidebar({
                 className="w-8 h-8 rounded-full object-cover shrink-0 select-none" 
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#a8c7fa] to-purple-500 flex items-center justify-center text-[10px] font-bold text-[#131314] shadow-inner select-none shrink-0">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-[10px] font-bold text-slate-950 shadow-inner select-none shrink-0 border border-slate-800">
                 {(userProfile?.name || 'AI').slice(0, 2).toUpperCase()}
               </div>
             )}
             <div className="flex-1 text-left min-w-0">
-              <div className="text-xs font-semibold text-[#ececf1] truncate leading-normal">
+              <div className="text-xs font-semibold text-slate-100 truncate leading-normal">
                 {userProfile?.name || 'AI User'}
               </div>
-              <div className="text-[10px] text-neutral-500 truncate leading-none">Settings & Instructions</div>
+              <div className="text-[10px] text-slate-500 truncate leading-none">Settings & Instructions</div>
             </div>
-            <Settings className="w-4 h-4 text-neutral-500 shrink-0" />
+            <Settings className="w-4 h-4 text-slate-500 shrink-0" />
           </button>
           
           {onSignOut && (
             <button
               onClick={onSignOut}
-              className="flex items-center justify-center w-full py-1.5 px-2.5 rounded-lg border border-neutral-800/40 text-neutral-500 hover:text-rose-450 hover:bg-rose-950/15 transition-all text-xs font-semibold cursor-pointer"
+              className="flex items-center justify-center w-full py-1.5 px-2.5 rounded-lg border border-slate-800 text-slate-500 hover:text-rose-500 hover:bg-rose-950/20 transition-all text-xs font-semibold cursor-pointer"
             >
               Sign Out
             </button>
@@ -601,24 +620,24 @@ export default function Sidebar({
         </>
         ) : (
           /* ================= COLLAPSED MINI-VIEW ================= */
-          <div className="flex flex-col h-full items-center justify-between py-4 select-none shrink-0 w-[68px] bg-[#171717]">
+          <div className="flex flex-col h-full items-center justify-between py-4 select-none shrink-0 w-[68px] bg-slate-950 sidebar-narrow-strip">
             {/* Collapsed top bar items */}
             <div className="flex flex-col items-center gap-5 w-full">
               {/* Gemma/Bot logo with expand panel action */}
               <button
                 onClick={onToggleOpen}
-                className="p-2 rounded-xl text-[#a8c7fa] bg-[#a8c7fa]/10 hover:bg-[#a8c7fa]/20 transition-all cursor-pointer hover:scale-105"
+                className="p-2 rounded-xl text-primary bg-primary/10 hover:bg-primary/20 transition-all cursor-pointer hover:scale-105"
                 title="Expand sidebar"
               >
                 <Brain className="w-5.5 h-5.5" />
               </button>
 
-              <div className="w-8 h-px bg-neutral-800/60 my-1" />
+              <div className="w-8 h-px bg-slate-800 my-1" />
 
               {/* New Chat */}
               <button
                 onClick={onCreateSession}
-                className="p-2.5 rounded-xl text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+                className="p-2.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
                 title="New chat"
               >
                 <SquarePen className="w-5 h-5" />
@@ -628,7 +647,7 @@ export default function Sidebar({
               {onOpenSearch && (
                 <button
                   onClick={onOpenSearch}
-                  className="p-2.5 rounded-xl text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+                  className="p-2.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
                   title="Search chats & contents"
                 >
                   <Search className="w-5 h-5" />
@@ -638,17 +657,17 @@ export default function Sidebar({
               {/* Explore GPTs */}
               <button
                 onClick={onOpenExploreGpts}
-                className="p-2.5 rounded-xl text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+                className="p-2.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
                 title="Explore Custom GPTs"
               >
-                <Compass className="w-5 h-5 text-[#a8c7fa]" />
+                <Compass className="w-5 h-5 text-primary" />
               </button>
 
               {/* Prompt Library */}
               {onOpenPromptLibrary && (
                 <button
                   onClick={onOpenPromptLibrary}
-                  className="p-2.5 rounded-xl text-[#b4b4b4] hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+                  className="p-2.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
                   title="Prompt Library Templates"
                 >
                   <Sparkles className="w-5 h-5 text-amber-400" />
@@ -661,7 +680,7 @@ export default function Sidebar({
               {/* Settings Trigger Icon */}
               <button
                 onClick={onOpenSettings}
-                className="p-2.5 rounded-xl text-neutral-500 hover:text-[#ececf1] hover:bg-[#212121] transition-all cursor-pointer"
+                className="p-2.5 rounded-xl text-slate-500 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
                 title="Settings & Instructions"
               >
                 <Settings className="w-5 h-5" />
@@ -677,10 +696,10 @@ export default function Sidebar({
                   <img 
                     src={userProfile.avatar_url} 
                     alt={userProfile.name} 
-                    className="w-8 h-8 rounded-full border border-neutral-700/60 object-cover shrink-0 select-none" 
+                    className="w-8 h-8 rounded-full border border-slate-800 object-cover shrink-0 select-none" 
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#a8c7fa] to-purple-500 flex items-center justify-center text-[10px] font-bold text-[#131314] shadow-md select-none shrink-0 border border-neutral-700/40">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-[10px] font-bold text-slate-950 shadow-md select-none shrink-0 border border-slate-800">
                     {(userProfile?.name || 'AI').slice(0, 2).toUpperCase()}
                   </div>
                 )}
@@ -694,14 +713,14 @@ export default function Sidebar({
       {isMoveToProjectOpen && activeMoveSessionId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 font-sans select-none animate-in fade-in duration-200">
           <div className="fixed inset-0" onClick={() => setIsMoveToProjectOpen(false)} />
-          <div className="relative w-full max-w-sm bg-[#1e1f20] border border-[#303134] rounded-3xl p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-[#303134] pb-3 text-slate-100">
+          <div className="relative w-full max-w-sm bg-slate-900 border border-slate-700 rounded-3xl p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-700 pb-3 text-slate-100">
               <span className="text-sm font-bold flex items-center gap-1.5">
-                <FolderInput className="w-4 h-4 text-[#a8c7fa]" /> Move Chat to Project
+                <FolderInput className="w-4 h-4 text-primary" /> Move Chat to Project
               </span>
               <button 
                 onClick={() => setIsMoveToProjectOpen(false)} 
-                className="p-1 rounded-full hover:bg-neutral-800 text-slate-400 hover:text-slate-200 transition-colors"
+                className="p-1 rounded-full hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -711,14 +730,14 @@ export default function Sidebar({
               {/* Unassigned / Clear project */}
               <button
                 onClick={() => {
-                  if (onMoveSessionToProject) {
+                  if (onMoveSessionToProject && activeMoveSessionId) {
                     onMoveSessionToProject(activeMoveSessionId, undefined);
                   }
                   setIsMoveToProjectOpen(false);
                 }}
-                className="w-full text-left text-xs p-2.5 rounded-xl border border-[#303134] hover:bg-neutral-850 hover:border-neutral-750 text-neutral-300 transition-all font-semibold flex items-center gap-2 cursor-pointer"
+                className="w-full text-left text-xs p-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 hover:border-slate-650 text-slate-300 transition-all font-semibold flex items-center gap-2 cursor-pointer"
               >
-                <Folder className="w-3.5 h-3.5 text-neutral-500" />
+                <Folder className="w-3.5 h-3.5 text-slate-500" />
                 Unassigned (Move out of project)
               </button>
               
@@ -726,14 +745,14 @@ export default function Sidebar({
                 <button
                   key={project.id}
                   onClick={() => {
-                    if (onMoveSessionToProject) {
+                    if (onMoveSessionToProject && activeMoveSessionId) {
                       onMoveSessionToProject(activeMoveSessionId, project.id);
                     }
                     setIsMoveToProjectOpen(false);
                   }}
-                  className="w-full text-left text-xs p-2.5 rounded-xl border border-transparent bg-neutral-900/60 hover:bg-neutral-800 text-slate-200 transition-all font-semibold flex items-center gap-2 cursor-pointer"
+                  className="w-full text-left text-xs p-2.5 rounded-xl border border-transparent bg-slate-900/60 hover:bg-slate-800 text-slate-200 transition-all font-semibold flex items-center gap-2 cursor-pointer"
                 >
-                  <Folder className="w-3.5 h-3.5 text-[#a8c7fa]" />
+                  <Folder className="w-3.5 h-3.5 text-primary" />
                   {project.name}
                 </button>
               ))}
