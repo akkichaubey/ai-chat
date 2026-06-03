@@ -100,7 +100,8 @@
 - 📚 **Prompt Library** — Templates, favorites, SEO and Business tabs, inline edits, and injects.
 - 📤 **Export** — Markdown, text, and PDF (via marked.js formatting).
 - 🎙️ **Voice Mode overlay** — Waveform, sentence queue, autostart, and TTS playback.
-- 💻 **Code Sandbox** — Multi-file Sandpack component with inline execution.
+- 📦 **Interactive Artifacts & Code Sandbox** — Claude-style collapsible Artifact Cards, path/filename extraction, side-over split drawer workspace with Code/Preview tabs, file downloads, and in-chat multi-file Sandpack execution.
+- 🖼️ **Image Lightbox Carousel** — Full-screen carousel viewer for image attachments supporting keyboard navigation, touch swipes, drag gestures, wheel/pinch-to-zoom (up to 4x), and drag-panning.
 - 🌗 **Themes** — Light, Dark, and 5 color themes.
 - 📱 **Mobile Responsive** — collapses sidebar, optimized for touches.
 - 🌐 **Web Search** — grounding with Google Search.

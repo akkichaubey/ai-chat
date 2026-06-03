@@ -97,14 +97,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - AI persona selection & custom system prompts.
 - Web search grounding & Thinking mode toggles.
 
-### Added — Multimodal (Phase 12, Partial)
+### Added — Multimodal (Phase 12, Complete)
 - Image upload and analysis via Gemini Vision
 - Clipboard paste support for screenshots
 - Visual drag-and-drop overlay zone
 - File context injection (text files, code files)
 - Voice Mode overlay using Web Speech API (text-to-speech + speech-to-text)
-- Code Sandbox using Sandpack (multi-file in-chat execution)
-- Mobile responsive design
+- **Interactive Claude-like Artifacts System**:
+  - Automatically identifies filenames and file structures from code comments using Regex.
+  - Collapses large blocks (> 12 lines) or annotated files into sleek, horizontal Artifact Cards in the message feeds.
+  - Cards support inline expand chevrons, quick copy-to-clipboard, and click actions to open the side-over workspace drawer.
+  - Side-over workspace panel split into tabbed modes: **Code** (full-height syntax highlights + line numbers) and **Preview** (Sandpack execution).
+  - Multi-file preview support for React/HTML sandboxes and auto-collapsing drawer for non-runnable files.
+  - One-click native file downloading directly from the workspace header toolbar.
+  - Re-anchored rendering via React Context prevents sandbox state reset or card collapse during viewport scrolling.
+- **Premium Image Lightbox Viewer**:
+  - Full-screen carousel modal for image attachments triggered by thread clicks.
+  - Keyboard navigation (`ArrowRight`/`ArrowLeft`/`Escape`), touch swipes, and drag gestures.
+  - Wheel and pinch-to-zoom (up to 4x scaling) with drag-panning capabilities.
+- **Code Block Readability Overrides**:
+  - Fixed syntax highlight text colors, enforcing unhighlighted words and variables (like `React`, `name`, `email`, `e`, etc.) to match current themes dynamically (e.g. `var(--text-primary)`).
+  - Added style tokens for HTML attributes, CSS units, JS/TSX types/parameters, Python builtins, Markdown header tags, and JSON/YAML keys.
+- Mobile responsive design optimizations
 
 ---
 
