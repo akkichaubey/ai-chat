@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Sandpack } from '@codesandbox/sandpack-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import ImageLightbox, { LightboxImage } from './ImageLightbox';
 import { 
   Send, 
   Square,
@@ -29,6 +30,7 @@ import {
   Headphones,
   Code,
   ChevronUp,
+  ChevronDown,
   PanelLeft,
   Feather,
   Sliders,
@@ -236,6 +238,247 @@ const parseMultiFileCode = (code: string): Record<string, string> | null => {
   return files;
 };
 
+const extractFilename = (code: string, language?: string): string | null => {
+  const lines = code.split('\n');
+  if (lines.length === 0) return null;
+  const firstLine = lines[0].trim();
+  
+  // Match comments like:
+  // // filename.ext
+  // /* filename.ext */
+  // # filename.ext
+  // <!-- filename.ext -->
+  // file: filename.ext
+  const match = firstLine.match(/^(?:\/\/\/|\/\/|#|<!--|\/\*)\s*([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9]+)\s*(?:-->|\*\/)?$/) ||
+                firstLine.match(/^(?:\/\/\/|\/\/|#|<!--|\/\*)\s*[Ff]ile:\s*([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9]+)\s*(?:-->|\*\/)?$/) ||
+                firstLine.match(/^[Ff]ile:\s*([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9]+)$/);
+  
+  if (match && match[1]) {
+    return match[1].replace(/^\.\//, '').trim();
+  }
+  return null;
+};
+
+const ArtifactContext = React.createContext<{
+  onRunCode: (files: Record<string, string>, title: string, rawCode: string, language: string, isRunnable: boolean) => void;
+} | null>(null);
+
+const CodeBlockRenderer = ({ className, children, ...props }: { className?: string; children?: React.ReactNode }) => {
+  const context = React.useContext(ArtifactContext);
+  const match = /language-(\w+)/.exec(className || '');
+  const isCodeBlock = match || String(children).includes('\n');
+  const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  
+  const copyToClipboard = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const language = match ? match[1].toLowerCase() : '';
+  const codeStr = String(children);
+  const parsedFiles = parseMultiFileCode(codeStr);
+  const filename = extractFilename(codeStr, language);
+  const lineCount = codeStr.split('\n').length;
+  
+  const isArtifact = isCodeBlock && (lineCount > 12 || filename !== null);
+  const isRunnable = ['javascript', 'js', 'html', 'css', 'typescript', 'ts', 'jsx', 'tsx'].includes(language) || parsedFiles !== null;
+
+  const handleDownloadCode = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    let dlFilename = filename;
+    if (!dlFilename || dlFilename === 'Artifact' || dlFilename === 'multi-file project' || dlFilename === 'Untitled Code') {
+      const ext = language === 'javascript' ? 'js' :
+                  language === 'typescript' ? 'ts' :
+                  language === 'html' ? 'html' :
+                  language === 'css' ? 'css' :
+                  language === 'python' ? 'py' : 'txt';
+      dlFilename = `code_artifact.${ext}`;
+    }
+
+    const blob = new Blob([codeStr], { type: 'text/plain;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', dlFilename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleRunCode = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    
+    let files: Record<string, string> = {};
+    if (parsedFiles) {
+      files = parsedFiles;
+    } else {
+      if (language === 'html') {
+        files = { '/index.html': codeStr };
+      } else if (language === 'css') {
+        files = {
+          '/styles.css': codeStr,
+          '/index.html': `<link rel="stylesheet" href="./styles.css">\n<div class="p-4">CSS Preview</div>`
+        };
+      } else if (language === 'tsx' || language === 'jsx') {
+        files = { '/App.tsx': codeStr };
+      } else {
+        files = { '/index.js': codeStr };
+      }
+    }
+
+    if (context) {
+      context.onRunCode(files, filename || (parsedFiles ? 'multi-file project' : `${language || 'code'} file`), codeStr, language, isRunnable);
+    }
+  };
+
+  if (!isCodeBlock) {
+    return (
+      <code className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700/30 text-indigo-300 font-mono text-[11px]" {...props}>
+        {children}
+      </code>
+    );
+  }
+
+  if (isArtifact) {
+    const displayTitle = filename || (parsedFiles ? 'multi-file project' : 'Untitled Code');
+    const linesText = `${lineCount} line${lineCount === 1 ? '' : 's'}`;
+    const langText = language ? `${language.toUpperCase()} • ` : '';
+    
+    return (
+      <div className="my-4 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-md">
+        {/* Artifact Card Header */}
+        <div 
+          className="flex items-center justify-between px-4 py-3 bg-slate-950/40 border-b border-slate-800/80 hover:bg-slate-950/60 transition-colors cursor-pointer"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-lg bg-slate-800 text-primary border border-slate-700/50 shrink-0">
+              <Code className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-slate-200 truncate font-mono">
+                {displayTitle}
+              </div>
+              <div className="text-[10px] text-slate-400 font-medium">
+                {langText}{linesText}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Download Action */}
+            <button
+              type="button"
+              onClick={handleDownloadCode}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850 transition-colors"
+              title="Download code file"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Copy Action */}
+            <button
+              type="button"
+              onClick={copyToClipboard}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850 transition-colors"
+              title="Copy code"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+
+            {/* View / Open Artifact in Sidebar */}
+            <button
+              type="button"
+              onClick={handleRunCode}
+              className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all flex items-center gap-1 shrink-0"
+              title="Open in Side Panel"
+            >
+              <Eye className="w-3 h-3" />
+              <span>Open Artifact</span>
+            </button>
+            
+            {/* Toggle Inline Visibility Chevron */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded(!expanded);
+              }}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850 transition-colors"
+              title={expanded ? "Collapse code inline" : "Expand code inline"}
+            >
+              {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Inline Expanded Code View */}
+        {expanded && (
+          <div className="relative border-t border-slate-800/50">
+            <div className="p-4 overflow-x-auto font-mono text-[11px] leading-relaxed text-slate-350 bg-slate-950 scrollbar-thin max-h-96">
+              <SyntaxHighlighter
+                language={language || 'text'}
+                useInlineStyles={false}
+                className="prism-theme-override bg-transparent! p-0!"
+              >
+                {codeStr.replace(/\n$/, '')}
+              </SyntaxHighlighter>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="my-4 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-lg shadow-black/35">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-900/90 border-b border-slate-800/80 text-[10px] font-mono text-slate-400">
+        <span className="uppercase tracking-wider font-semibold">{parsedFiles ? 'multi-file component' : (match ? match[1] : 'code')}</span>
+        <div className="flex items-center gap-2">
+          {isRunnable && (
+            <button
+              type="button"
+              onClick={handleRunCode}
+              className="px-2 py-0.5 rounded transition-all font-medium flex items-center gap-1 hover:text-slate-200 hover:bg-slate-800/60"
+            >
+              <Play className="w-2.5 h-2.5" />
+              Run Code
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={copyToClipboard}
+            className={`px-2 py-0.5 rounded transition-all font-medium ${
+              copied 
+                ? 'text-emerald-400 bg-emerald-950/20 border border-emerald-900/30' 
+                : 'hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+      </div>
+      
+      <div className="p-4 overflow-x-auto font-mono text-[11px] leading-relaxed text-slate-300 scrollbar-thin">
+        <SyntaxHighlighter
+          language={language || 'text'}
+          useInlineStyles={false}
+          className="prism-theme-override bg-transparent! p-0!"
+        >
+          {codeStr.replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      </div>
+    </div>
+  );
+};
+
+const markdownComponents = {
+  code: CodeBlockRenderer
+};
+
 export default function ChatArea({
   messages,
   isLoading,
@@ -278,8 +521,52 @@ export default function ChatArea({
   const [editInput, setEditInput] = useState('');
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [uploadedPreviewImages, setUploadedPreviewImages] = useState<LightboxImage[]>([]);
+
+  // Gather all image attachments in the entire conversation in order
+  const conversationImages = React.useMemo(() => {
+    const collected: LightboxImage[] = [];
+    messages.forEach((msg) => {
+      if (msg.attachments && msg.attachments.length > 0) {
+        msg.attachments.forEach((att) => {
+          if (att.type.startsWith('image/')) {
+            collected.push({
+              messageId: msg.id,
+              name: att.name,
+              type: att.type,
+              data: att.data
+            });
+          }
+        });
+      }
+    });
+    return collected;
+  }, [messages]);
+
+  const handleInputImageClick = (clickedAtt: Attachment) => {
+    const uploadedImages = attachments
+      .filter(att => att.type.startsWith('image/'))
+      .map(att => ({
+        messageId: 'input-preview',
+        name: att.name,
+        type: att.type,
+        data: att.data
+      }));
+
+    const index = uploadedImages.findIndex(img => img.name === clickedAtt.name);
+    if (index !== -1) {
+      setLightboxIndex(index);
+      setUploadedPreviewImages(uploadedImages);
+    }
+  };
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
   const [sandboxFiles, setSandboxFiles] = useState<Record<string, string> | null>(null);
+  const [sandboxTitle, setSandboxTitle] = useState('Artifact');
+  const [sandboxActiveTab, setSandboxActiveTab] = useState<'code' | 'preview'>('code');
+  const [sandboxRawCode, setSandboxRawCode] = useState('');
+  const [sandboxLanguage, setSandboxLanguage] = useState('');
+  const [sandboxRunnable, setSandboxRunnable] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
@@ -297,6 +584,29 @@ export default function ChatArea({
     navigator.clipboard.writeText(text);
     setCopiedMessageId(id);
     setTimeout(() => setCopiedMessageId(null), 2000);
+  };
+
+  const handleDownloadSandboxCode = () => {
+    if (!sandboxRawCode) return;
+    
+    let filename = sandboxTitle;
+    if (!filename || filename === 'Artifact' || filename === 'multi-file project' || filename === 'Untitled Code') {
+      const ext = sandboxLanguage === 'javascript' ? 'js' :
+                  sandboxLanguage === 'typescript' ? 'ts' :
+                  sandboxLanguage === 'html' ? 'html' :
+                  sandboxLanguage === 'css' ? 'css' :
+                  sandboxLanguage === 'python' ? 'py' : 'txt';
+      filename = `code_artifact.${ext}`;
+    }
+
+    const blob = new Blob([sandboxRawCode], { type: 'text/plain;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleToggleSpeak = (messageId: string, text: string) => {
@@ -468,6 +778,24 @@ export default function ChatArea({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [isLoading, onStopGeneration]);
 
+  // Close dropdowns on any scroll in the window (capturing phase)
+  useEffect(() => {
+    const handleGlobalScroll = (e: Event) => {
+      const target = e.target as HTMLElement;
+      // If scroll happens inside the model selector or plus menu container, do not close them!
+      if (target && (target.closest('.model-dropdown-container') || target.closest('.plus-menu-container'))) {
+        return;
+      }
+      setShowModelDropdown(false);
+      setShowPlusMenu(false);
+    };
+
+    window.addEventListener('scroll', handleGlobalScroll, true);
+    return () => {
+      window.removeEventListener('scroll', handleGlobalScroll, true);
+    };
+  }, []);
+
   // Speech Recognition Hook initialization
   useEffect(() => {
     const SpeechRecognition = ((window as unknown) as Record<string, new () => SpeechRecognitionInstance>).SpeechRecognition || ((window as unknown) as Record<string, new () => SpeechRecognitionInstance>).webkitSpeechRecognition;
@@ -518,6 +846,14 @@ export default function ChatArea({
 
   // Handle scroll tracking
   const handleScroll = () => {
+    // Close active input toolbar dropdowns on scroll
+    if (showModelDropdown) {
+      setShowModelDropdown(false);
+    }
+    if (showPlusMenu) {
+      setShowPlusMenu(false);
+    }
+
     if (!chatContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
     
@@ -827,103 +1163,22 @@ export default function ChatArea({
     }
     setEditingMessageId(null);
   };
-
-  // Custom markdown code renderer
-  const CodeBlockRenderer = ({ className, children, ...props }: { className?: string; children?: React.ReactNode }) => {
-    const match = /language-(\w+)/.exec(className || '');
-    const isCodeBlock = match || String(children).includes('\n');
-    const [copied, setCopied] = useState(false);
-    
-    const copyToClipboard = () => {
-      navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    };
-
-    const language = match ? match[1].toLowerCase() : '';
-    const codeStr = String(children);
-    const parsedFiles = parseMultiFileCode(codeStr);
-    const isRunnable = ['javascript', 'js', 'html', 'css', 'typescript', 'ts', 'jsx', 'tsx'].includes(language) || parsedFiles !== null;
-
-    const handleRunCode = () => {
-      if (parsedFiles) {
-        setSandboxFiles(parsedFiles);
-      } else {
-        // Fallback for single file code blocks
-        if (language === 'html') {
-          setSandboxFiles({
-            '/index.html': codeStr
-          });
-        } else if (language === 'css') {
-          setSandboxFiles({
-            '/styles.css': codeStr,
-            '/index.html': `<link rel="stylesheet" href="./styles.css">\n<div class="p-4">CSS Preview</div>`
-          });
-        } else if (language === 'tsx' || language === 'jsx') {
-          setSandboxFiles({
-            '/App.tsx': codeStr
-          });
-        } else {
-          // JS/TS or fallback
-          setSandboxFiles({
-            '/index.js': codeStr
-          });
-        }
-      }
-      setIsSandboxOpen(true);
-    };
-
-    return isCodeBlock ? (
-      <div className="my-4 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-lg shadow-black/35">
-        <div className="flex items-center justify-between px-4 py-2 bg-slate-900/90 border-b border-slate-800/80 text-[10px] font-mono text-slate-400">
-          <span className="uppercase tracking-wider font-semibold">{parsedFiles ? 'multi-file component' : (match ? match[1] : 'code')}</span>
-          <div className="flex items-center gap-2">
-            {isRunnable && (
-              <button
-                onClick={handleRunCode}
-                className="px-2 py-0.5 rounded transition-all font-medium flex items-center gap-1 hover:text-slate-200 hover:bg-slate-800/60"
-              >
-                <Play className="w-2.5 h-2.5" />
-                Run Code
-              </button>
-            )}
-            <button
-              onClick={copyToClipboard}
-              className={`px-2 py-0.5 rounded transition-all font-medium ${
-                copied 
-                  ? 'text-emerald-400 bg-emerald-950/20 border border-emerald-900/30' 
-                  : 'hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
-        </div>
-        
-        <div className="p-4 overflow-x-auto font-mono text-[11px] leading-relaxed text-slate-300 scrollbar-thin">
-          <SyntaxHighlighter
-            language={language || 'text'}
-            useInlineStyles={false}
-            className="prism-theme-override bg-transparent! p-0!"
-          >
-            {codeStr.replace(/\n$/, '')}
-          </SyntaxHighlighter>
-        </div>
-      </div>
-    ) : (
-      <code className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700/30 text-indigo-300 font-mono text-[11px]" {...props}>
-        {children}
-      </code>
-    );
+  const handleRunCode = (files: Record<string, string>, title: string, rawCode: string, language: string, isRunnable: boolean) => {
+    setSandboxFiles(files);
+    setSandboxTitle(title);
+    setSandboxRawCode(rawCode);
+    setSandboxLanguage(language);
+    setSandboxRunnable(isRunnable);
+    setSandboxActiveTab(isRunnable ? 'preview' : 'code');
+    setIsSandboxOpen(true);
   };
 
-  const markdownComponents = {
-    code: CodeBlockRenderer
-  };
+  let imgCounter = 0;
 
   return (
-    <div
-      className="flex flex-col flex-1 h-full min-w-0 bg-slate-950 relative"
+    <ArtifactContext.Provider value={{ onRunCode: handleRunCode }}>
+      <div
+        className="flex flex-col flex-1 h-full min-w-0 bg-slate-950 relative"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -1115,10 +1370,10 @@ export default function ChatArea({
                   {/* Message Bubble + Actions Wrap */}
                   <div className="flex flex-col max-w-[85%] gap-1">
                     <div
-                      className={`rounded-2xl px-4.5 py-3 text-sm leading-relaxed border transition-all relative ${
+                      className={`rounded-2xl text-sm leading-relaxed transition-all relative ${
                         isAssistant
-                          ? 'bg-slate-900 border-slate-700 text-slate-200 shadow-sm shadow-black/5 pr-10'
-                          : 'bg-slate-800 border-slate-700 text-slate-200 shadow-md shadow-black/5'
+                          ? 'bg-transparent border-transparent text-slate-200 pr-10 px-0 py-1'
+                          : 'bg-slate-800 border-slate-700 text-slate-200 shadow-md shadow-black/5 px-4.5 py-3 border'
                       }`}
                     >
                       {/* Speaker Read Aloud Button */}
@@ -1292,6 +1547,11 @@ export default function ChatArea({
                         <div className="flex flex-wrap gap-2 mt-3 pt-2.5 border-t border-slate-700/30">
                           {message.attachments.map((att, idx) => {
                             const isImage = att.type.startsWith('image/');
+                            let currentImgIndex = -1;
+                            if (isImage) {
+                              currentImgIndex = imgCounter;
+                              imgCounter++;
+                            }
                             return (
                               <div key={idx} className="flex items-center gap-1.5 p-1.5 rounded-lg bg-slate-950/80 border border-slate-700 text-xs">
                                 {isImage ? (
@@ -1299,7 +1559,7 @@ export default function ChatArea({
                                     src={`data:${att.type};base64,${att.data}`} 
                                     alt={att.name} 
                                     className="w-16 h-16 object-cover rounded border border-slate-700 cursor-pointer hover:opacity-85 transition-opacity" 
-                                    onClick={() => window.open(`data:${att.type};base64,${att.data}`)}
+                                    onClick={() => setLightboxIndex(currentImgIndex)}
                                   />
                                 ) : (
                                   <div className="flex items-center gap-1.5 px-1">
@@ -1417,7 +1677,11 @@ export default function ChatArea({
                   {attachments.map((att, index) => (
                     <div key={index} className="relative group flex items-center gap-1.5 p-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-xs">
                       {att.type.startsWith('image/') ? (
-                        <img src={att.previewUrl} className="w-8 h-8 rounded object-cover" />
+                        <img 
+                          src={att.previewUrl} 
+                          className="w-8 h-8 rounded object-cover cursor-pointer hover:opacity-85 transition-opacity" 
+                          onClick={() => handleInputImageClick(att)} 
+                        />
                       ) : (
                         <FileText className="w-4 h-4 text-primary" />
                       )}
@@ -1548,7 +1812,7 @@ export default function ChatArea({
                           setActiveSubmenu('main');
                         }}
                       />
-                      <div className="absolute left-0 bottom-11 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1.5 w-60 text-slate-200 select-none animate-in fade-in slide-in-from-bottom-2 duration-150">
+                      <div className="plus-menu-container absolute left-0 bottom-11 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1.5 w-60 text-slate-200 select-none animate-in fade-in slide-in-from-bottom-2 duration-150">
                         {activeSubmenu === 'main' && (
                           <div className="flex flex-col">
                             {/* Attach Files */}
@@ -1801,27 +2065,37 @@ export default function ChatArea({
                   </button>
 
                   {showModelDropdown && !webSearchEnabled && (
-                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-30 p-1.5 max-h-60 overflow-y-auto scrollbar-thin">
-                      {AVAILABLE_MODELS.map((m) => (
-                        <button
-                          key={m.id}
-                          type="button"
-                          onClick={() => {
-                            onModelChange(m.id);
-                            setShowModelDropdown(false);
-                            refocusInput();
-                          }}
-                          className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-left text-xs font-sans transition-all ${
-                            m.id === selectedModel
-                              ? 'bg-slate-800 text-primary'
-                              : 'text-slate-300 hover:bg-[#202124] hover:text-white'
-                          }`}
-                        >
-                          <span className="truncate pr-2">{m.name}</span>
-                          {m.id === selectedModel && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                        </button>
-                      ))}
-                    </div>
+                    <>
+                      {/* Backdrop to close dropdown on click outside */}
+                      <div 
+                        className="fixed inset-0 z-20 cursor-default" 
+                        onClick={() => {
+                          setShowModelDropdown(false);
+                          refocusInput();
+                        }}
+                      />
+                      <div className="model-dropdown-container absolute bottom-full left-0 mb-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-30 p-1.5 max-h-60 overflow-y-auto scrollbar-thin">
+                        {AVAILABLE_MODELS.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => {
+                              onModelChange(m.id);
+                              setShowModelDropdown(false);
+                              refocusInput();
+                            }}
+                            className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-left text-xs font-sans transition-all ${
+                              m.id === selectedModel
+                                ? 'bg-slate-800 text-primary'
+                                : 'text-slate-300 hover:bg-[#202124] hover:text-white'
+                            }`}
+                          >
+                            <span className="truncate pr-2">{m.name}</span>
+                            {m.id === selectedModel && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                    </>
                   )}
                 </div>
 
@@ -1860,7 +2134,7 @@ export default function ChatArea({
         </form>
       </footer>
 
-      {/* Slide-over Sandpack Drawer */}
+      {/* Slide-over Sandpack Drawer / Artifact Viewer */}
       {isSandboxOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           {/* Backdrop */}
@@ -1873,47 +2147,138 @@ export default function ChatArea({
           <div className="relative w-full max-w-4xl h-full bg-slate-900 border-l border-slate-700 shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-300">
             
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-[#1a1a1a]">
-              <div className="flex items-center gap-2">
-                <Code className="w-5 h-5 text-primary" />
-                <span className="font-semibold text-sm text-slate-200">Interactive Multi-File Sandbox</span>
+            <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-700 bg-[#1a1a1a]">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-1.5 rounded-lg bg-slate-800 text-primary border border-slate-700/50 shrink-0">
+                  <Code className="w-4.5 h-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="font-semibold text-sm text-slate-200 block truncate font-mono">{sandboxTitle}</span>
+                  {sandboxLanguage && (
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wide font-medium">{sandboxLanguage}</span>
+                  )}
+                </div>
               </div>
-              <button
-                onClick={() => setIsSandboxOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+
+              {/* Tabs selector */}
+              {sandboxRunnable && (
+                <div className="flex items-center bg-slate-950 border border-slate-800 p-0.5 rounded-lg text-xs">
+                  <button
+                    onClick={() => setSandboxActiveTab('code')}
+                    className={`px-3 py-1.5 rounded-md font-semibold transition-all select-none ${
+                      sandboxActiveTab === 'code'
+                        ? 'bg-slate-800 text-primary border border-slate-750 shadow-sm'
+                        : 'text-slate-405 hover:text-slate-200'
+                    }`}
+                  >
+                    Code
+                  </button>
+                  <button
+                    onClick={() => setSandboxActiveTab('preview')}
+                    className={`px-3 py-1.5 rounded-md font-semibold transition-all select-none ${
+                      sandboxActiveTab === 'preview'
+                        ? 'bg-slate-800 text-primary border border-slate-750 shadow-sm'
+                        : 'text-slate-405 hover:text-slate-200'
+                    }`}
+                  >
+                    Preview
+                  </button>
+                </div>
+              )}
+
+              {/* Action buttons (Download, Close) */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDownloadSandboxCode}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Download File"
+                >
+                  <Download className="w-4.5 h-4.5" />
+                </button>
+                <button
+                  onClick={() => setIsSandboxOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Close panel"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             
-            {/* Sandbox Body */}
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-950">
-              {sandboxFiles && (
-                <Sandpack
-                  template={
-                    Object.keys(sandboxFiles).some(k => k.endsWith('.tsx') || k.endsWith('.ts') || k.endsWith('.jsx'))
-                      ? 'react-ts'
-                      : 'static'
-                  }
-                  theme="dark"
-                  files={sandboxFiles}
-                  options={{
-                    showNavigator: true,
-                    showTabs: true,
-                    closableTabs: false,
-                    showLineNumbers: true,
-                    editorHeight: "calc(100vh - 200px)",
-                    externalResources: [
-                      "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
-                    ]
-                  }}
-                />
+            {/* Sandbox Drawer Body */}
+            <div className="flex-1 flex flex-col bg-slate-950 overflow-hidden relative">
+              {sandboxActiveTab === 'code' || !sandboxRunnable ? (
+                /* Code Tab: Syntax Highlighted view */
+                <div className="flex-1 flex flex-col overflow-hidden p-6 relative">
+                  <div className="flex items-center justify-between mb-4 shrink-0">
+                    <span className="text-xs text-slate-450 font-mono">Source Code</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(sandboxRawCode);
+                      }}
+                      className="px-2.5 py-1 text-[10px] font-semibold text-slate-350 bg-slate-900 border border-slate-800 rounded-lg hover:text-slate-100 hover:bg-slate-800 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      Copy Code
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-auto rounded-xl border border-slate-800 bg-slate-950/80 p-4 font-mono text-xs leading-relaxed text-slate-300 scrollbar-thin">
+                    <SyntaxHighlighter
+                      language={sandboxLanguage || 'text'}
+                      useInlineStyles={false}
+                      showLineNumbers={true}
+                      className="prism-theme-override bg-transparent! p-0! line-numbers"
+                    >
+                      {sandboxRawCode.replace(/\n$/, '')}
+                    </SyntaxHighlighter>
+                  </div>
+                </div>
+              ) : (
+                /* Preview Tab: Sandpack Execution container */
+                <div className="flex-1 overflow-y-auto p-6 bg-slate-950">
+                  {sandboxFiles && (
+                    <Sandpack
+                      template={
+                        Object.keys(sandboxFiles).some(k => k.endsWith('.tsx') || k.endsWith('.ts') || k.endsWith('.jsx'))
+                          ? 'react-ts'
+                          : 'static'
+                      }
+                      theme="dark"
+                      files={sandboxFiles}
+                      options={{
+                        showNavigator: true,
+                        showTabs: true,
+                        closableTabs: false,
+                        showLineNumbers: true,
+                        editorHeight: "calc(100vh - 190px)",
+                        externalResources: [
+                          "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+                        ]
+                      }}
+                    />
+                  )}
+                </div>
               )}
             </div>
             
           </div>
         </div>
       )}
-    </div>
+
+      {/* Enhanced Image Lightbox Viewer */}
+      {lightboxIndex !== null && (
+        <ImageLightbox
+          isOpen={lightboxIndex !== null}
+          onClose={() => {
+            setLightboxIndex(null);
+            setUploadedPreviewImages([]);
+          }}
+          images={uploadedPreviewImages.length > 0 ? uploadedPreviewImages : conversationImages}
+          currentIndex={lightboxIndex}
+          onIndexChange={(idx) => setLightboxIndex(idx)}
+        />
+      )}
+      </div>
+    </ArtifactContext.Provider>
   );
 }

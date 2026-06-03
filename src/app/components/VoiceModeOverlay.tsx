@@ -81,6 +81,7 @@ export default function VoiceModeOverlay({
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isSpeechSupported, setIsSpeechSupported] = useState(true);
 
   // Voice Settings State (Loaded from localStorage or defaults)
   const [selectedLanguage, setSelectedLanguage] = useState('en-US');
@@ -193,6 +194,7 @@ export default function VoiceModeOverlay({
   };
 
   const handleInterrupt = () => {
+    if (!isSpeechSupported) return;
     // Interrupt voice: stop speaking and listen
     cancelSpeech();
     if (!isMicMuted && !isLoading) {
@@ -304,6 +306,8 @@ export default function VoiceModeOverlay({
     if (typeof window === 'undefined') return;
 
     const SpeechRecognition = ((window as unknown) as Record<string, new () => SpeechRecognitionInstance>).SpeechRecognition || ((window as unknown) as Record<string, new () => SpeechRecognitionInstance>).webkitSpeechRecognition;
+    setIsSpeechSupported(!!SpeechRecognition);
+
     if (SpeechRecognition) {
       const rec = new SpeechRecognition();
       rec.continuous = false; // We want single utterances, then we auto-submit
@@ -496,11 +500,13 @@ export default function VoiceModeOverlay({
           {/* Animated Visualizer Panel */}
           <div 
             onClick={handleInterrupt}
-            className="w-48 h-48 rounded-full flex items-center justify-center relative cursor-pointer select-none group"
-            title="Click to interrupt / talk"
+            className={`w-48 h-48 rounded-full flex items-center justify-center relative select-none group ${
+              isSpeechSupported ? 'cursor-pointer' : 'cursor-not-allowed opacity-75'
+            }`}
+            title={isSpeechSupported ? "Click to interrupt / talk" : "Speech Recognition Unavailable"}
           >
             {/* Expanded glow ripples during Listening */}
-            {voiceStatus === 'listening' && (
+            {isSpeechSupported && voiceStatus === 'listening' && (
               <>
                 <div className="absolute inset-0 rounded-full bg-blue-500/10 animate-ping" style={{ animationDuration: '3s' }} />
                 <div className="absolute -inset-4 rounded-full bg-blue-500/5 animate-pulse" style={{ animationDuration: '2s' }} />
@@ -509,7 +515,7 @@ export default function VoiceModeOverlay({
             )}
 
             {/* Pulsing rings during Speaking */}
-            {voiceStatus === 'speaking' && (
+            {isSpeechSupported && voiceStatus === 'speaking' && (
               <>
                 <div className="absolute inset-0 rounded-full bg-purple-500/15 animate-pulse" style={{ animationDuration: '1s' }} />
                 <div className="absolute -inset-6 rounded-full bg-purple-500/5 animate-pulse" style={{ animationDuration: '1.8s' }} />
@@ -517,58 +523,80 @@ export default function VoiceModeOverlay({
             )}
 
             {/* Glowing gradient rotating border for Thinking */}
-            {voiceStatus === 'thinking' && (
+            {isSpeechSupported && voiceStatus === 'thinking' && (
               <div className="absolute inset-0 rounded-full border-2 border-dashed border-primary animate-spin" style={{ animationDuration: '8s' }} />
             )}
 
             {/* Main Central Orb */}
             <div className={`w-36 h-36 rounded-full flex flex-col items-center justify-center transition-all duration-500 shadow-xl border ${
-              voiceStatus === 'listening'
-                ? 'bg-gradient-to-br from-blue-500 to-cyan-600 border-blue-400 scale-105 shadow-blue-500/25'
-                : voiceStatus === 'thinking'
-                  ? 'bg-gradient-to-br from-[#1e1f20] to-[#2d2f31] border-primary/40 animate-pulse'
-                  : voiceStatus === 'speaking'
-                    ? 'bg-gradient-to-br from-purple-500 to-indigo-600 border-purple-400 scale-105 shadow-purple-500/25'
-                    : 'bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 hover:border-slate-600 shadow-black/30'
+              !isSpeechSupported
+                ? 'bg-gradient-to-br from-slate-900 to-slate-950 border-rose-950/40 shadow-black/45'
+                : voiceStatus === 'listening'
+                  ? 'bg-gradient-to-br from-blue-500 to-cyan-600 border-blue-400 scale-105 shadow-blue-500/25'
+                  : voiceStatus === 'thinking'
+                    ? 'bg-gradient-to-br from-[#1e1f20] to-[#2d2f31] border-primary/40 animate-pulse'
+                    : voiceStatus === 'speaking'
+                      ? 'bg-gradient-to-br from-purple-500 to-indigo-600 border-purple-400 scale-105 shadow-purple-500/25'
+                      : 'bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 hover:border-slate-600 shadow-black/30'
             }`}>
               
               {/* Central icons representing state */}
-              {voiceStatus === 'listening' && (
-                <Mic className="w-12 h-12 text-white animate-bounce" />
-              )}
-              {voiceStatus === 'thinking' && (
-                <Brain className="w-12 h-12 text-primary animate-spin" style={{ animationDuration: '3s' }} />
-              )}
-              {voiceStatus === 'speaking' && (
-                /* Dynamic sound wave visualizer bars */
-                <div className="flex items-end justify-center gap-1.5 h-12">
-                  <div className="w-1.5 h-4 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '0.6s' }} />
-                  <div className="w-1.5 h-10 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '0.8s' }} />
-                  <div className="w-1.5 h-6 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '0.5s' }} />
-                  <div className="w-1.5 h-8 bg-white rounded-full animate-bounce" style={{ animationDelay: '100ms', animationDuration: '0.7s' }} />
-                  <div className="w-1.5 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '200ms', animationDuration: '0.9s' }} />
-                </div>
-              )}
-              {voiceStatus === 'idle' && (
-                <Volume2 className="w-12 h-12 text-slate-300 group-hover:text-white transition-colors" />
+              {!isSpeechSupported ? (
+                <MicOff className="w-12 h-12 text-rose-500 animate-pulse" />
+              ) : (
+                <>
+                  {voiceStatus === 'listening' && (
+                    <Mic className="w-12 h-12 text-white animate-bounce" />
+                  )}
+                  {voiceStatus === 'thinking' && (
+                    <Brain className="w-12 h-12 text-primary animate-spin" style={{ animationDuration: '3s' }} />
+                  )}
+                  {voiceStatus === 'speaking' && (
+                    /* Dynamic sound wave visualizer bars */
+                    <div className="flex items-end justify-center gap-1.5 h-12">
+                      <div className="w-1.5 h-4 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '0.6s' }} />
+                      <div className="w-1.5 h-10 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '0.8s' }} />
+                      <div className="w-1.5 h-6 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '0.5s' }} />
+                      <div className="w-1.5 h-8 bg-white rounded-full animate-bounce" style={{ animationDelay: '100ms', animationDuration: '0.7s' }} />
+                      <div className="w-1.5 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '200ms', animationDuration: '0.9s' }} />
+                    </div>
+                  )}
+                  {voiceStatus === 'idle' && (
+                    <Volume2 className="w-12 h-12 text-slate-300 group-hover:text-white transition-colors" />
+                  )}
+                </>
               )}
             </div>
           </div>
 
           {/* Current Status and Text Bubble */}
           <div className="mt-8 text-center space-y-2 max-w-sm px-4">
-            <h3 className="text-sm font-semibold text-slate-100 font-sans tracking-wide capitalize">
-              {voiceStatus === 'listening' && 'Listening...'}
-              {voiceStatus === 'thinking' && 'Thinking...'}
-              {voiceStatus === 'speaking' && 'Speaking...'}
-              {voiceStatus === 'idle' && 'Click Orb to Speak'}
+            <h3 className={`text-sm font-semibold font-sans tracking-wide capitalize ${
+              !isSpeechSupported ? 'text-rose-400' : 'text-slate-100'
+            }`}>
+              {!isSpeechSupported ? 'Speech Recognition Unavailable' : (
+                <>
+                  {voiceStatus === 'listening' && 'Listening...'}
+                  {voiceStatus === 'thinking' && 'Thinking...'}
+                  {voiceStatus === 'speaking' && 'Speaking...'}
+                  {voiceStatus === 'idle' && 'Click Orb to Speak'}
+                </>
+              )}
             </h3>
             
-            <p className="text-xs text-slate-400 font-sans leading-relaxed line-clamp-3">
-              {voiceStatus === 'speaking' && activeResponseText}
-              {voiceStatus === 'listening' && 'Speak clearly now...'}
-              {voiceStatus === 'thinking' && 'Formulating reply...'}
-              {voiceStatus === 'idle' && 'Gemma 4 is ready. Tap orb to begin hands-free conversation.'}
+            <p className="text-xs text-slate-400 font-sans leading-relaxed">
+              {!isSpeechSupported ? (
+                <span>
+                  Speech recognition is not supported or is disabled in your current browser. Please try <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>, or enable the <code>media.webspeech.recognition.enable</code> flag in Firefox.
+                </span>
+              ) : (
+                <>
+                  {voiceStatus === 'speaking' && activeResponseText}
+                  {voiceStatus === 'listening' && 'Speak clearly now...'}
+                  {voiceStatus === 'thinking' && 'Formulating reply...'}
+                  {voiceStatus === 'idle' && 'Gemma 4 is ready. Tap orb to begin hands-free conversation.'}
+                </>
+              )}
             </p>
           </div>
         </div>
