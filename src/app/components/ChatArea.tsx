@@ -53,8 +53,17 @@ import {
   MessageSquare,
   Image,
   Video,
-  Zap
+  Zap,
+  Box,
+  WifiOff,
+  FolderOpen,
+  Terminal,
+  Pin
 } from 'lucide-react';
+import { useLocalProjectStore } from '../store/useLocalProjectStore';
+import { useGitHubRepoStore } from '../store/useGitHubRepoStore';
+import CodebaseExplorer from './CodebaseExplorer';
+import GitHubRepoPanel from './GitHubRepoPanel';
 
 interface SpeechRecognitionEvent {
   results: {
@@ -99,60 +108,12 @@ interface Message {
   attachments?: Attachment[];
 }
 
-interface ChatAreaProps {
-  messages: Message[];
-  isLoading: boolean;
-  onSendMessage: (content: string, attachments: Attachment[]) => void;
-  activeModelName: string;
-  onOpenSettings: () => void;
-  
-  // Toggles
-  thinkingEnabled: boolean;
-  setThinkingEnabled: (val: boolean) => void;
-  webSearchEnabled: boolean;
-  setWebSearchEnabled: (val: boolean) => void;
-
-  // Editing and Regenerating
-  onEditMessage: (messageId: string, newContent: string) => void;
-  onRegenerateMessage: (messageId: string) => void;
-  onDeleteMessage?: (messageId: string) => void;
-
-  // Session Title
-  activeSessionTitle: string;
-
-  // Voice mode
-  onOpenVoiceMode: () => void;
-
-
-
-  // Model switching from input toolbar
-  selectedModel: string;
-  onModelChange: (model: string) => void;
-
-  // Sidebar toggle props
-  isSidebarOpen: boolean;
-  onToggleSidebar: () => void;
-
-  // Custom GPT optional props
-  gptName?: string;
-  gptAvatarEmoji?: string;
-  gptAvatarBg?: string;
-  gptDescription?: string;
-  gptStarterPrompts?: string[];
-
-  // Writing Styles and Special Skills optional props
-  activeStyle?: string;
-  activeSkill?: string;
-  onStyleChange: (styleId: string) => void;
-  onSkillChange: (skillId: string) => void;
-
-  // Library prompt injection
-  injectedPrompt?: string;
-  clearInjectedPrompt?: () => void;
-  onOpenPromptLibrary?: () => void;
-  // Stop generation
-  onStopGeneration?: () => void;
-}
+// Zustand Store imports
+import { useChatStore } from '../store/useChatStore';
+import { useProjectStore } from '../store/useProjectStore';
+import { useSettingsStore } from '../store/useSettingsStore';
+import { useModelMonitorStore } from '../store/useModelMonitorStore';
+import { useUsageStore, getTodayKey } from '../store/useUsageStore';
 
 const STARTER_PROMPTS = [
   {
@@ -479,39 +440,155 @@ const markdownComponents = {
   code: CodeBlockRenderer
 };
 
-export default function ChatArea({
-  messages,
-  isLoading,
-  onSendMessage,
-  activeModelName,
-  onOpenSettings,
-  thinkingEnabled,
-  setThinkingEnabled,
-  webSearchEnabled,
-  setWebSearchEnabled,
-  onEditMessage,
-  onRegenerateMessage,
-  onDeleteMessage,
-  activeSessionTitle,
-  onOpenVoiceMode,
-  selectedModel,
-  onModelChange,
-  isSidebarOpen,
-  onToggleSidebar,
-  gptName,
-  gptAvatarEmoji,
-  gptAvatarBg,
-  gptDescription,
-  gptStarterPrompts,
-  activeStyle = 'normal',
-  activeSkill = 'default',
-  onStyleChange,
-  onSkillChange,
-  injectedPrompt,
-  clearInjectedPrompt,
-  onOpenPromptLibrary,
-  onStopGeneration
-}: ChatAreaProps) {
+export interface ModelItem {
+  id: string;
+  name: string;
+  provider: 'gemini' | 'openai' | 'anthropic' | 'groq' | 'openrouter';
+  description?: string;
+}
+
+export const AVAILABLE_MODELS: ModelItem[] = [
+  // Gemini Models
+  { id: 'gemma-4-31b-it', name: 'Gemma 4 (31B IT)', provider: 'gemini', description: "Google's lightweight open model family, 31B parameter instruction-tuned" },
+  { id: 'gemma-2-27b-it', name: 'Gemma 2 (27B IT)', provider: 'gemini', description: "Google's high-efficiency open model, 27B parameter instruction-tuned" },
+  { id: 'gemma-2-9b-it', name: 'Gemma 2 (9B IT)', provider: 'gemini', description: "Google's efficient smaller model, 9B parameter instruction-tuned" },
+  { id: 'gemma-2-2b-it', name: 'Gemma 2 (2B IT)', provider: 'gemini', description: "Google's ultra-lightweight open model, 2B parameter instruction-tuned" },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini', description: 'Next-generation speed and quality for general multimodal tasks' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini', description: "Google's most capable multimodal model for complex reasoning" },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'gemini', description: 'Fast, lightweight multimodal model optimized for real-time tasks' },
+  { id: 'gemini-2.0-flash-thinking-exp', name: 'Gemini 2.0 Flash Thinking', provider: 'gemini', description: 'Advanced experimental model with explicit reasoning traces' },
+  { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro', provider: 'gemini', description: 'High-performing experimental model with strong reasoning' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'gemini', description: "Google's standard high-speed multimodal model" },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'gemini', description: "Google's capability leader for general long-context reasoning" },
+
+  // OpenAI Models
+  { id: 'gpt-5.5', name: 'GPT-5.5', provider: 'openai', description: 'A new class of intelligence for professional work' },
+  { id: 'gpt-5.4', name: 'GPT-5.4', provider: 'openai', description: 'Intelligence at scale for agents & professional work' },
+  { id: 'gpt-5.4-mini', name: 'GPT-5.4-mini', provider: 'openai', description: 'Faster, cost-efficient version of GPT-5.4' },
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', description: 'Omni model with high intelligence and high speed' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai', description: 'Cost-efficient, fast omni model for general tasks' },
+  { id: 'o1-mini', name: 'o1-mini', provider: 'openai', description: 'Reasoning model optimized for coding and STEM fields' },
+  { id: 'o1-preview', name: 'o1-preview', provider: 'openai', description: "Early preview of OpenAI's advanced reasoning model" },
+  { id: 'o3-mini', name: 'o3-mini', provider: 'openai', description: 'Next-generation cost-efficient reasoning model' },
+  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openai', description: 'High-intelligence model with deep domain knowledge' },
+  { id: 'gpt-4', name: 'GPT-4', provider: 'openai', description: 'Classic high-intelligence legacy GPT-4 model' },
+  { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview', provider: 'openai', description: "Preview of OpenAI's advanced GPT-4.5 model" },
+
+  // Claude Models (Anthropic)
+  { id: 'claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet', provider: 'anthropic', description: "Anthropic's state-of-the-art model for coding and reasoning" },
+  { id: 'claude-3-5-haiku-latest', name: 'Claude 3.5 Haiku', provider: 'anthropic', description: "Anthropic's fastest and most cost-effective model" },
+  { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'anthropic', description: "Anthropic's powerful classic reasoning model" },
+
+  // Groq Models
+  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B (Groq)', provider: 'groq', description: "Meta's highly capable 70B parameter model on Groq hardware" },
+  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B (Groq)', provider: 'groq', description: "Meta's fast 8B parameter model on Groq hardware" },
+  { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B (Groq)', provider: 'groq', description: 'High-speed Mixture of Experts (MoE) model on Groq' },
+  { id: 'deepseek-r1-distill-llama-70b', name: 'DeepSeek R1 70B (Groq)', provider: 'groq', description: 'DeepSeek R1 distilled on Llama 70B via Groq' },
+
+  // OpenRouter Models
+  { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B (Router)', provider: 'openrouter', description: 'Llama 3.3 70B instruction-tuned model via OpenRouter' },
+  { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1 (Router)', provider: 'openrouter', description: 'DeepSeek R1 full reasoning model via OpenRouter' },
+  { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro (Router)', provider: 'openrouter', description: 'Gemini 2.5 Pro via OpenRouter' },
+  { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (Router)', provider: 'openrouter', description: 'Claude 3.5 Sonnet via OpenRouter' }
+];
+
+export default function ChatArea() {
+  const {
+    activeSessionId,
+    sessions,
+    messagesMap,
+    isLoading,
+    thinkingEnabled,
+    webSearchEnabled,
+    setThinkingEnabled,
+    setWebSearchEnabled,
+    sendMessage: onSendMessage,
+    editMessage: onEditMessage,
+    regenerateMessage: onRegenerateMessage,
+    deleteMessage: onDeleteMessage,
+    setVoiceModeOpen,
+    stopGeneration: onStopGeneration,
+    updateSessionField
+  } = useChatStore();
+
+  const {
+    isSidebarOpen,
+    setSidebarOpen,
+    setPromptLibraryOpen,
+    injectedPrompt,
+    setInjectedPrompt
+  } = useProjectStore();
+
+  const { settings, toggleSettings, setSettings } = useSettingsStore();
+
+  const {
+    healthMap,
+    isVerifying,
+    checkAllForProvider
+  } = useModelMonitorStore();
+
+  const { stats } = useUsageStore();
+
+  const {
+    activeDirectoryHandle,
+    directoryPermissionStatus,
+    attachedFiles,
+    chatWithCodebase,
+    loadSavedDirectory,
+    requestDirectoryPermission,
+    toggleFileAttachment,
+    clearAttachments,
+    setChatWithCodebase
+  } = useLocalProjectStore();
+
+  const [showExplorer, setShowExplorer] = useState(false);
+  const [showGitHubPanel, setShowGitHubPanel] = useState(false);
+
+  const { isIndexed: ghIsIndexed, owner: ghOwner, repo: ghRepo } = useGitHubRepoStore();
+
+  // Derived Values
+  const activeSession = sessions.find(s => s.id === activeSessionId);
+  const messages = activeSessionId ? (messagesMap[activeSessionId] || []) : [];
+  const activeSessionTitle = activeSession?.title || 'Chat';
+  const selectedModel = settings.model;
+  const provider = settings.provider || 'gemini';
+  const apiKey = settings.apiKeys?.[provider] || settings.apiKey || '';
+
+  const activeModel = AVAILABLE_MODELS.find(m => m.id === selectedModel);
+  const activeModelName = activeModel ? activeModel.name : selectedModel;
+
+  const gptName = activeSession?.gptName;
+  const gptAvatarEmoji = activeSession?.gptAvatarEmoji;
+  const gptAvatarBg = activeSession?.gptAvatarBg;
+  const gptDescription = activeSession?.gptDescription;
+  const gptStarterPrompts = activeSession?.gptStarterPrompts;
+
+  const activeStyle = activeSession?.activeStyle || 'normal';
+  const activeSkill = activeSession?.activeSkill || 'default';
+
+  // Handlers
+  const onOpenSettings = () => toggleSettings(true);
+  const onOpenVoiceMode = () => setVoiceModeOpen(true);
+  const onOpenPromptLibrary = () => setPromptLibraryOpen(true);
+  const onToggleSidebar = () => setSidebarOpen(!isSidebarOpen);
+  const clearInjectedPrompt = () => setInjectedPrompt('');
+
+  const onModelChange = (model: string) => {
+    const matched = AVAILABLE_MODELS.find(m => m.id === model);
+    setSettings({ model, provider: matched?.provider || 'gemini' });
+  };
+
+  const onStyleChange = (styleId: string) => {
+    if (activeSessionId) {
+      updateSessionField(activeSessionId, 'activeStyle', styleId);
+    }
+  };
+
+  const onSkillChange = (skillId: string) => {
+    if (activeSessionId) {
+      updateSessionField(activeSessionId, 'activeSkill', skillId);
+    }
+  };
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -673,17 +750,50 @@ export default function ChatArea({
     }
   }, [injectedPrompt, clearInjectedPrompt]);
 
-  const AVAILABLE_MODELS = [
-    { id: 'gemma-4-31b-it', name: 'Gemma 4 (31B IT)' },
-    { id: 'gemma-2-27b-it', name: 'Gemma 2 (27B IT)' },
-    { id: 'gemma-2-9b-it', name: 'Gemma 2 (9B IT)' },
-    { id: 'gemma-2-2b-it', name: 'Gemma 2 (2B IT)' },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-    { id: 'gemini-2.0-flash-thinking-exp', name: 'Gemini 2.0 Flash Thinking' },
-    { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro' },
-  ];
+  const [serverProviders, setServerProviders] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    fetch('/api/providers')
+      .then(res => res.json())
+      .then(data => setServerProviders(data))
+      .catch(err => console.warn('Failed to load server fallback providers:', err));
+  }, []);
+
+  // Automatically detect health status for all models of the active provider in the background
+  useEffect(() => {
+    if (provider && apiKey) {
+      checkAllForProvider(provider, apiKey);
+    }
+  }, [provider, apiKey, checkAllForProvider]);
+
+  // Load saved codebase folder when active session or active project changes
+  useEffect(() => {
+    if (activeSession?.projectId) {
+      loadSavedDirectory(activeSession.projectId);
+    } else {
+      useLocalProjectStore.setState({ 
+        activeDirectoryHandle: null, 
+        directoryPermissionStatus: 'prompt',
+        indexedFiles: [],
+        fileTree: [],
+        projectSummary: null,
+        attachedFiles: []
+      });
+    }
+  }, [activeSession?.projectId, loadSavedDirectory]);
+
+  const displayedModels = AVAILABLE_MODELS.filter(m => {
+    // 1. Check if the server-side env key is configured
+    if (serverProviders[m.provider]) return true;
+    // 2. Check if the client-side active key is configured for this provider
+    if (provider === m.provider && apiKey) return true;
+    return false;
+  });
+
+  // Fallback to showing Gemini models if no keys are configured
+  const finalModels = displayedModels.length > 0
+    ? displayedModels
+    : AVAILABLE_MODELS.filter(m => m.provider === 'gemini');
 
   const activeModelObj = AVAILABLE_MODELS.find(m => m.id === selectedModel);
   const friendlyModelName = webSearchEnabled 
@@ -815,7 +925,7 @@ export default function ChatArea({
       };
       
       rec.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error('Speech recognition error', event.error);
+        console.warn('Speech recognition error', event.error);
         setIsListening(false);
       };
       
@@ -839,7 +949,7 @@ export default function ChatArea({
       try {
         recognitionRef.current.start();
       } catch (e) {
-        console.error(e);
+        console.warn(e);
       }
     }
   };
@@ -1177,12 +1287,15 @@ export default function ChatArea({
 
   return (
     <ArtifactContext.Provider value={{ onRunCode: handleRunCode }}>
-      <div
-        className="flex flex-col flex-1 h-full min-w-0 bg-slate-950 relative"
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
+      <div className="flex flex-1 h-full min-w-0 bg-slate-950 relative overflow-hidden">
+        
+        {/* Main Chat Panel */}
+        <div
+          className="flex flex-col flex-1 h-full min-w-0 relative"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
       {/* Drag-and-Drop Overlay */}
       {isDragOver && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-sm pointer-events-none">
@@ -1259,6 +1372,34 @@ export default function ChatArea({
               </button>
             </>
           )}
+          {activeSession?.projectId && activeDirectoryHandle && directoryPermissionStatus === 'granted' && (
+            <button
+              onClick={() => setShowExplorer(!showExplorer)}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                showExplorer 
+                  ? 'bg-primary/15 text-primary border border-primary/35' 
+                  : 'text-slate-300 hover:text-slate-200 hover:bg-slate-800 border border-transparent'
+              }`}
+              title="Toggle Codebase Explorer"
+            >
+              <FolderOpen className="w-4.5 h-4.5" />
+            </button>
+          )}
+          {/* GitHub Repo Reader Button */}
+          <button
+            onClick={() => setShowGitHubPanel(!showGitHubPanel)}
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer relative ${
+              showGitHubPanel
+                ? 'bg-primary/15 text-primary border border-primary/35'
+                : 'text-slate-300 hover:text-slate-200 hover:bg-slate-800 border border-transparent'
+            }`}
+            title="GitHub Repo Reader"
+          >
+            <span className="text-base leading-none">🐙</span>
+            {ghIsIndexed && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-slate-900" />
+            )}
+          </button>
           <button
             onClick={onOpenSettings}
             className="p-1.5 rounded-lg text-slate-300 hover:text-slate-200 hover:bg-slate-800 transition-colors"
@@ -1268,6 +1409,24 @@ export default function ChatArea({
           </button>
         </div>
       </header>
+
+      {/* Codebase re-authorization request banner */}
+      {activeDirectoryHandle && directoryPermissionStatus !== 'granted' && (
+        <div className="bg-amber-500/10 border-b border-amber-500/15 py-2 px-4 flex items-center justify-between gap-3 text-xs shrink-0 select-none">
+          <div className="flex items-center gap-2 text-slate-350 min-w-0">
+            <AlertCircle className="w-4 h-4 text-amber-550 shrink-0" />
+            <span className="truncate">
+              Local codebase directory <strong>{activeDirectoryHandle.name}</strong> access requires re-authorization to read files.
+            </span>
+          </div>
+          <button
+            onClick={requestDirectoryPermission}
+            className="px-3 py-1 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/25 hover:border-amber-500/40 rounded-xl text-amber-300 hover:text-white text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1 shrink-0"
+          >
+            Re-authorize Access
+          </button>
+        </div>
+      )}
 
       {/* Messages Scroll Area */}
       <div
@@ -1445,6 +1604,12 @@ export default function ChatArea({
                               message.content.toLowerCase().includes('out of tokens') ||
                               message.content.toLowerCase().includes('token finish');
                             
+                            const isNetworkError =
+                              message.content.toLowerCase().includes('network error') ||
+                              message.content.toLowerCase().includes('failed to fetch') ||
+                              message.content.toLowerCase().includes('offline') ||
+                              message.content.toLowerCase().includes('networkerror');
+                            
                             if (isApiKeyError) {
                               return (
                                 <div className="flex flex-col gap-3 py-1 font-sans text-slate-200">
@@ -1495,6 +1660,33 @@ export default function ChatArea({
                                     >
                                       <Key className="w-3.5 h-3.5" />
                                       Switch Provider or Key in Settings
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            } else if (isNetworkError) {
+                              return (
+                                <div className="flex flex-col gap-3 py-1 font-sans text-slate-200">
+                                  <div className="flex items-start gap-3">
+                                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-450 shrink-0 mt-0.5 border border-amber-500/10">
+                                      <WifiOff className="w-4.5 h-4.5" />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <h4 className="font-bold text-sm text-amber-400">
+                                        Network Connection Failed
+                                      </h4>
+                                      <p className="text-xs text-slate-400 leading-relaxed">
+                                        Your device is offline or the AI server endpoint is unreachable. Please verify your internet connection.
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2.5 pl-11 pt-0.5">
+                                    <button
+                                      onClick={() => onRegenerateMessage(message.id)}
+                                      className="px-3.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/25 hover:border-amber-500/40 rounded-xl text-amber-300 hover:text-white text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5"
+                                    >
+                                      <RefreshCw className="w-3.5 h-3.5 animate-pulse" />
+                                      Retry Request
                                     </button>
                                   </div>
                                 </div>
@@ -1669,6 +1861,28 @@ export default function ChatArea({
         <form onSubmit={handleSend} className="max-w-3xl mx-auto relative">
           
           <div className="relative flex flex-col bg-slate-900 border border-slate-700 rounded-2xl focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all shadow-lg shadow-black/25 p-2">
+            
+            {/* Local Codebase File Attachments */}
+            {attachedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 px-2 pb-2 pt-1 border-b border-slate-700/30 mb-2">
+                {attachedFiles.map((path) => {
+                  const filename = path.split('/').pop() || path;
+                  return (
+                    <div key={path} className="relative group flex items-center gap-1.5 p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/15 text-xs text-emerald-450">
+                      <Pin className="w-3.5 h-3.5 text-emerald-450 shrink-0" />
+                      <span className="truncate max-w-[150px] text-emerald-300 font-sans font-medium" title={path}>{filename}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleFileAttachment(path)}
+                        className="p-0.5 rounded-full hover:bg-emerald-500/20 text-emerald-450 hover:text-rose-400 transition-colors cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             
             {/* File attachment previews */}
             {attachments.length > 0 && (
@@ -2042,16 +2256,41 @@ export default function ChatArea({
                   Thinking
                 </button>
 
+                {activeDirectoryHandle && directoryPermissionStatus === 'granted' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChatWithCodebase(!chatWithCodebase);
+                      refocusInput();
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold font-sans transition-all ${
+                      chatWithCodebase
+                        ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-400 font-bold' 
+                        : 'bg-transparent border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600'
+                    }`}
+                    title="Toggle codebase grounding search to automatically retrieve context"
+                  >
+                    <Code className="w-3.5 h-3.5" />
+                    Codebase
+                  </button>
+                )}
+
                 <div className="h-4 w-px bg-[#303134] mx-1" />
 
                 {/* Model Selector Dropdown */}
+
+
                 <div className="relative">
                   <button
                     type="button"
                     disabled={webSearchEnabled}
                     onClick={() => {
-                      setShowModelDropdown(!showModelDropdown);
+                      const nextOpen = !showModelDropdown;
+                      setShowModelDropdown(nextOpen);
                       refocusInput();
+                      if (nextOpen && provider && apiKey) {
+                        checkAllForProvider(provider, apiKey);
+                      }
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold font-sans transition-all select-none ${
                       webSearchEnabled
@@ -2074,26 +2313,103 @@ export default function ChatArea({
                           refocusInput();
                         }}
                       />
-                      <div className="model-dropdown-container absolute bottom-full left-0 mb-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-30 p-1.5 max-h-60 overflow-y-auto scrollbar-thin">
-                        {AVAILABLE_MODELS.map((m) => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => {
-                              onModelChange(m.id);
-                              setShowModelDropdown(false);
-                              refocusInput();
-                            }}
-                            className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-left text-xs font-sans transition-all ${
-                              m.id === selectedModel
-                                ? 'bg-slate-800 text-primary'
-                                : 'text-slate-300 hover:bg-[#202124] hover:text-white'
-                            }`}
-                          >
-                            <span className="truncate pr-2">{m.name}</span>
-                            {m.id === selectedModel && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                          </button>
-                        ))}
+                      <div className="model-dropdown-container absolute bottom-full left-0 mb-2 w-80 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl z-30 p-1.5 max-h-80 overflow-y-auto scrollbar-thin">
+                        <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800/80 mb-1">
+                          Select AI Model
+                        </div>
+                        {finalModels.map((m) => {
+                          const health = healthMap[m.id] || { status: 'untested' };
+                          const checking = isVerifying[m.id];
+                          const isFailed = health.status === 'failed';
+                          const isHealthy = health.status === 'healthy';
+
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              disabled={isFailed}
+                              onClick={() => {
+                                onModelChange(m.id);
+                                setShowModelDropdown(false);
+                                refocusInput();
+                              }}
+                              className={`flex items-start gap-2.5 w-full px-3 py-2.5 rounded-xl text-left text-xs font-sans transition-all ${
+                                m.id === selectedModel
+                                  ? 'bg-slate-850 text-primary'
+                                  : isFailed
+                                    ? 'opacity-40 cursor-not-allowed text-slate-500'
+                                    : 'text-slate-300 hover:bg-slate-800/40 hover:text-white'
+                              }`}
+                              title={
+                                isFailed 
+                                  ? `Model Unavailable: ${health.error}` 
+                                  : checking 
+                                    ? 'Verifying model health...' 
+                                    : m.description
+                              }
+                            >
+                              <div className="relative p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-400 shrink-0 mt-0.5">
+                                <Box className="w-3.5 h-3.5" />
+                                {checking ? (
+                                  <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                                ) : isHealthy ? (
+                                  <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500" />
+                                ) : isFailed ? (
+                                  <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-rose-500" />
+                                ) : (
+                                  <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500" title="Untested model" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-semibold text-slate-100">{m.name}</span>
+                                  {m.provider === 'openai' && (
+                                    <span className="text-[9px] bg-emerald-950/40 text-emerald-400 px-1 py-0.2 rounded border border-emerald-900/30 font-mono scale-90 origin-left">
+                                      OpenAI
+                                    </span>
+                                  )}
+                                  {m.provider === 'gemini' && (
+                                    <span className="text-[9px] bg-indigo-950/40 text-indigo-400 px-1 py-0.2 rounded border border-indigo-900/30 font-mono scale-90 origin-left">
+                                      Gemini
+                                    </span>
+                                  )}
+                                  {m.provider === 'anthropic' && (
+                                    <span className="text-[9px] bg-amber-950/40 text-amber-400 px-1 py-0.2 rounded border border-amber-900/30 font-mono scale-90 origin-left">
+                                      Claude
+                                    </span>
+                                  )}
+                                  {m.provider === 'groq' && (
+                                    <span className="text-[9px] bg-rose-950/40 text-rose-400 px-1 py-0.2 rounded border border-rose-900/30 font-mono scale-90 origin-left">
+                                      Groq
+                                    </span>
+                                  )}
+                                  {m.provider === 'openrouter' && (
+                                    <span className="text-[9px] bg-sky-950/40 text-sky-400 px-1 py-0.2 rounded border border-sky-900/30 font-mono scale-90 origin-left">
+                                      Router
+                                    </span>
+                                  )}
+                                  {isHealthy && health.latency !== undefined && (
+                                    <span className="text-[9px] font-mono text-emerald-450/90 font-bold scale-90 origin-left">
+                                      ({health.latency}ms)
+                                    </span>
+                                  )}
+                                </div>
+                                {isFailed ? (
+                                  <p className="text-[9px] text-rose-400 mt-1 leading-normal font-medium">
+                                    Offline: {health.error}
+                                  </p>
+                                ) : checking ? (
+                                  <div className="h-3 w-32 bg-slate-800 rounded animate-pulse mt-1.5" />
+                                ) : m.description ? (
+                                  <p className="text-[10px] text-slate-400 mt-1 leading-normal">
+                                    {m.description}
+                                  </p>
+                                ) : null}
+                              </div>
+                              {m.id === selectedModel && <Check className="w-4 h-4 text-primary shrink-0 mt-1" />}
+                            </button>
+                          );
+                        })}
                       </div>
                     </>
                   )}
@@ -2278,7 +2594,24 @@ export default function ChatArea({
           onIndexChange={(idx) => setLightboxIndex(idx)}
         />
       )}
-      </div>
+      </div> {/* Close Main Chat Panel */}
+
+      {/* Codebase Explorer Sibling Panel */}
+      {showExplorer && activeSession?.projectId && activeDirectoryHandle && directoryPermissionStatus === 'granted' && (
+        <CodebaseExplorer 
+          projectId={activeSession.projectId} 
+          onClose={() => setShowExplorer(false)} 
+        />
+      )}
+
+      {/* GitHub Repo Reader Sibling Panel */}
+      {showGitHubPanel && (
+        <div className="w-80 shrink-0 border-l border-slate-800 h-full flex flex-col">
+          <GitHubRepoPanel onClose={() => setShowGitHubPanel(false)} />
+        </div>
+      )}
+
+      </div> {/* Close Root Flex Wrapper */}
     </ArtifactContext.Provider>
   );
 }

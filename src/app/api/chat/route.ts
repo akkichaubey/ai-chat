@@ -51,7 +51,16 @@ async function streamOpenAICompatible(
 
   if (!resp.ok) {
     const errText = await resp.text();
-    throw new Error(`${endpoint} error ${resp.status}: ${errText}`);
+    let detailMsg = errText;
+    try {
+      const parsedJSON = JSON.parse(errText);
+      if (parsedJSON.error?.message) {
+        detailMsg = parsedJSON.error.message;
+      } else if (parsedJSON.error) {
+        detailMsg = typeof parsedJSON.error === 'string' ? parsedJSON.error : JSON.stringify(parsedJSON.error);
+      }
+    } catch {}
+    throw new Error(`API error ${resp.status}: ${detailMsg}`);
   }
 
   const reader = resp.body!.getReader();
@@ -112,7 +121,16 @@ async function streamAnthropic(
 
   if (!resp.ok) {
     const errText = await resp.text();
-    throw new Error(`Anthropic error ${resp.status}: ${errText}`);
+    let detailMsg = errText;
+    try {
+      const parsedJSON = JSON.parse(errText);
+      if (parsedJSON.error?.message) {
+        detailMsg = parsedJSON.error.message;
+      } else if (parsedJSON.error) {
+        detailMsg = typeof parsedJSON.error === 'string' ? parsedJSON.error : JSON.stringify(parsedJSON.error);
+      }
+    } catch {}
+    throw new Error(`Anthropic error ${resp.status}: ${detailMsg}`);
   }
 
   const reader = resp.body!.getReader();
@@ -165,9 +183,22 @@ export async function POST(request: NextRequest) {
     } = await request.json();
 
     // API key precedence:
-    // 1. Client-supplied API key from headers/settings
-    // 2. Server-side environment variable GEMINI_API_KEY
-    const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
+    // 1. Client-supplied API key from settings
+    // 2. Server-side environment variable fallback specific to provider
+    let apiKey = clientApiKey;
+    if (!apiKey) {
+      if (provider === 'gemini') {
+        apiKey = process.env.GEMINI_API_KEY;
+      } else if (provider === 'openai') {
+        apiKey = process.env.OPENAI_API_KEY;
+      } else if (provider === 'anthropic') {
+        apiKey = process.env.ANTHROPIC_API_KEY;
+      } else if (provider === 'groq') {
+        apiKey = process.env.GROQ_API_KEY;
+      } else if (provider === 'openrouter') {
+        apiKey = process.env.OPENROUTER_API_KEY;
+      }
+    }
 
     if (!apiKey) {
       return new Response(
@@ -177,16 +208,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (provider === 'openai') {
-      return streamOpenAICompatible('https://api.openai.com/v1/chat/completions', apiKey, model, messages, temperature, systemPrompt);
+      return await streamOpenAICompatible('https://api.openai.com/v1/chat/completions', apiKey, model, messages, temperature, systemPrompt);
     }
     if (provider === 'openrouter') {
-      return streamOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', apiKey, model, messages, temperature, systemPrompt);
+      return await streamOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', apiKey, model, messages, temperature, systemPrompt);
     }
     if (provider === 'groq') {
-      return streamOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', apiKey, model, messages, temperature, systemPrompt);
+      return await streamOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', apiKey, model, messages, temperature, systemPrompt);
     }
     if (provider === 'anthropic') {
-      return streamAnthropic(apiKey, model, messages, temperature, systemPrompt);
+      return await streamAnthropic(apiKey, model, messages, temperature, systemPrompt);
     }
 
     let ai = new GoogleGenAI({ apiKey });

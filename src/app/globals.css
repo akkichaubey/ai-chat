@@ -2,6 +2,7 @@
 
 :root {
   /* Derived Google AI Studio Dark Mode Style Guide Variables */
+  color-scheme: dark;
   --bg-app: #131314;       /* Surface Level 0 (Main app background) */
   --bg-sidebar: #1e1e20;   /* Surface Level 1 (Sidebars and panels) */
   --bg-card: #1e1e20;      /* Surface Level 1 (Panels and cards) */
@@ -53,6 +54,7 @@
 /* Light Mode — applied via .light-mode on <html> */
 .light-mode {
   /* Derived Google AI Studio Light Mode Style Guide Variables */
+  color-scheme: light;
   --bg-app: #ffffff;       /* Surface Level 0 (Main app background) */
   --bg-sidebar: #f0f4f9;   /* Surface Level 1 (Sidebars and background panels) */
   --bg-card: #f0f4f9;      /* Surface Level 1 (Panels and cards) */
@@ -103,6 +105,7 @@
 
 /* Warm Sandstone Charcoal Theme */
 .theme-claude {
+  color-scheme: dark;
   --bg-app: #191919;
   --bg-sidebar: #222222;
   --bg-card: #222222;
@@ -129,6 +132,7 @@
 
 /* Midnight Cosmic Purple Theme */
 .theme-midnight {
+  color-scheme: dark;
   --bg-app: #090616;
   --bg-sidebar: #120e29;
   --bg-card: #120e29;
@@ -148,6 +152,7 @@
 
 /* Cyberpunk Neon Theme */
 .theme-cyberpunk {
+  color-scheme: dark;
   --bg-app: #040406;
   --bg-sidebar: #0d0d12;
   --bg-card: #0d0d12;
@@ -167,6 +172,7 @@
 
 /* Forest Emerald Green Theme */
 .theme-forest {
+  color-scheme: dark;
   --bg-app: #0a0f0b;
   --bg-sidebar: #121c14;
   --bg-card: #121c14;
@@ -251,10 +257,10 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
-/* Custom scrollbars */
+/* Custom scrollbars (WebKit/Blink engines like Chrome, Safari, Edge) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -262,12 +268,57 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background-color: var(--border-color);
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--active-color);
+  background-color: var(--text-muted);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Scrollbar utility classes */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.scrollbar-none {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+/* Standard scrollbars for Firefox & modern standards-compliant browsers */
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+  }
+  .scrollbar-none {
+    scrollbar-width: none !important;
+  }
 }
 
 /* Iridescent Gemini gradients */

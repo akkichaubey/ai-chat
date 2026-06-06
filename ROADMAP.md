@@ -36,6 +36,8 @@
 | 15 | Advanced Voice Mode & Gemini Live | 🔜 Planned |
 | 16 | Nano Banana Image Generation | 🔜 Planned |
 | 17 | Google Workspace AI Side Panel | 🔜 Planned |
+| 18 | Local Codebase Reader | ✅ Complete |
+| 19 | GitHub Public Repo Reader | ✅ Complete |
 
 ---
 
@@ -359,6 +361,73 @@
 
 ---
 
+---
+
+## Phase 18 — Local Codebase Reader (Completed & Tested)
+
+**Status Summary**: `[x]` Completed & Tested
+
+#### 1. Implementation Tasks
+- [x] File System Access API folder picker
+- [x] Recursive subfolder traversal (including deeply nested files)
+- [x] IndexedDB file content caching with freshness detection
+- [x] Framework detection and project summary generation
+- [x] Smart keyword file grounding per message
+- [x] Chat with Codebase toggle
+- [x] Codebase Explorer side panel with file tree, search, and attach toggle
+- [x] Re-authorization flow for page reloads
+
+#### 2. Test Cases & Verification Plan
+* **Test Case 1**: Select a local Next.js project folder and wait for indexing.
+  * **Expected Output**: Indexing progress bar runs, all source files (including nested) are cached, and framework is detected as 'Next.js'.
+  * **Status**: `[x] Passed`
+* **Test Case 2**: Ask the AI a question about a file in a deeply nested subfolder.
+  * **Expected Output**: AI correctly references and quotes from the nested file content.
+  * **Status**: `[x] Passed`
+* **Test Case 3**: Reload the page and verify re-authorization prompt appears.
+  * **Expected Output**: Re-authorization banner shown; clicking re-grants folder access without re-scanning all files.
+  * **Status**: `[x] Passed`
+
+#### 3. Testing Notes & Issues Found
+- *Critical bug fixed: recursive folder scan was silently skipping all subdirectory contents due to incorrect use of the File System Access API `.values()` iterator entry as a directory handle. Fixed by explicitly calling `dirHandle.getDirectoryHandle(entry.name)` for each subdirectory.*
+
+---
+
+## Phase 19 — GitHub Public Repo Reader (Completed & Tested)
+
+**Status Summary**: `[x]` Completed & Tested
+
+#### 1. Implementation Tasks
+- [x] GitHub REST API integration (no OAuth required)
+- [x] URL parsing for `owner/repo` extraction
+- [x] Default branch auto-detection
+- [x] Recursive tree fetch and filtering
+- [x] Batched file content fetching (5 concurrent)
+- [x] Binary and build artifact exclusion
+- [x] Framework detection from `package.json`
+- [x] Repo summary injection into system prompt
+- [x] Keyword-matched file injection per message
+- [x] Side panel with folder tree, file search, and expand/collapse
+- [x] Optional Personal Access Token (PAT) support
+- [x] Connection status badge in toolbar
+- [x] Disconnect functionality
+
+#### 2. Test Cases & Verification Plan
+* **Test Case 1**: Paste `https://github.com/akkichaubey/ai-chat` and click Read Repository.
+  * **Expected Output**: Repo is indexed, framework detected as 'Next.js', file tree displayed with expandable folders.
+  * **Status**: `[x] Passed`
+* **Test Case 2**: Ask the AI about a specific file in the repo.
+  * **Expected Output**: AI correctly identifies and explains the file using cached content.
+  * **Status**: `[x] Passed`
+* **Test Case 3**: Disconnect the repo and confirm AI no longer has repo context.
+  * **Expected Output**: Disconnect clears all cached files and removes repo summary from system prompt.
+  * **Status**: `[x] Passed`
+
+#### 3. Testing Notes & Issues Found
+- *No issues found. `atob()` decoding correctly handles base64-encoded GitHub API file responses. Batched requests respect rate limits gracefully.*
+
+---
+
 ## Launch MVP Checklist
 
 ### Core (No-Login, Local-First)
@@ -383,6 +452,10 @@
 - [x] Model switching (Gemini, OpenAI, Claude family)
 - [x] Workspace JSON backup/restore
 - [x] Keyboard shortcuts (Ctrl+N, Ctrl+,, Ctrl+K, Ctrl+Shift+F, Escape)
+- [x] Local Codebase Reader (File System Access API + IndexedDB + Codebase Explorer panel)
+- [x] GitHub Public Repo Reader (GitHub REST API + 🐙 side panel)
+- [x] 9-layer AI context injection pipeline
+- [x] Explore GPTs & Prompt Library sidebar quick-access buttons
 
 ### In Progress
 

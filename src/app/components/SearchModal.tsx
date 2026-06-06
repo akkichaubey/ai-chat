@@ -3,41 +3,14 @@
 import React, { useState } from 'react';
 import { X, Search, Folder, MessageSquare, Calendar, Filter } from 'lucide-react';
 
-interface ChatSession {
-  id: string;
-  title: string;
-  projectId?: string;
-  persona?: string;
-}
+import { useChatStore } from '../store/useChatStore';
+import { useProjectStore } from '../store/useProjectStore';
 
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-}
+export default function SearchModal() {
+  const { isSearchOpen: isOpen, setSearchOpen, projects } = useProjectStore();
+  const { sessions, messagesMap, setActiveSessionId: onSelectSession } = useChatStore();
 
-interface Project {
-  id: string;
-  name: string;
-}
-
-interface SearchModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  sessions: ChatSession[];
-  messagesMap: Record<string, Message[]>;
-  projects: Project[];
-  onSelectSession: (id: string) => void;
-}
-
-export default function SearchModal({
-  isOpen,
-  onClose,
-  sessions,
-  messagesMap,
-  projects,
-  onSelectSession,
-}: SearchModalProps) {
+  const onClose = () => setSearchOpen(false);
   const [query, setQuery] = useState('');
   const [filterProjectId, setFilterProjectId] = useState<string>('all');
   const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | '7days' | '30days'>('all');

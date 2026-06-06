@@ -34,62 +34,115 @@ export interface Project {
   createdAt: number;
 }
 
-interface ChatSession {
-  id: string;
-  title: string;
-  pinned?: boolean;
-  persona?: string;
-  customSystemPrompt?: string;
-  projectId?: string;
-}
+import { useChatStore, ChatSession } from '../store/useChatStore';
+import { useProjectStore } from '../store/useProjectStore';
+import { useSettingsStore } from '../store/useSettingsStore';
+import { useUsageStore, getTodayKey } from '../store/useUsageStore';
+import { useLocalProjectStore, saveDirectoryHandle } from '../store/useLocalProjectStore';
 
-interface SidebarProps {
-  sessions: ChatSession[];
-  activeSessionId: string;
-  onSelectSession: (id: string) => void;
-  onCreateSession: () => void;
-  onDeleteSession: (id: string) => void;
-  onRenameSession: (id: string, newTitle: string) => void;
-  onTogglePinSession: (id: string) => void;
-  onOpenSettings: () => void;
-  isOpen: boolean;
-  onToggleOpen: () => void;
-  onOpenExploreGpts: () => void;
-  userProfile?: { name: string; email: string; avatar_url?: string } | null;
-  onSignOut?: () => void;
-  projects?: Project[];
-  onCreateProject?: () => void;
-  onEditProject?: (project: Project) => void;
-  onDeleteProject?: (id: string) => void;
-  onMoveSessionToProject?: (sessionId: string, projectId?: string) => void;
-  onCreateSessionInProject?: (projectId: string) => void;
-  onOpenSearch?: () => void;
-  onOpenPromptLibrary?: () => void;
-}
+export default function Sidebar() {
+  const { stats } = useUsageStore();
+  const today = getTodayKey();
+  const todayRequests = stats.dailyRequests[today] || 0;
+  const todayTokens = stats.dailyTokens[today] || 0;
 
-export default function Sidebar({
-  sessions,
-  activeSessionId,
-  onSelectSession,
-  onCreateSession,
-  onDeleteSession,
-  onRenameSession,
-  onTogglePinSession,
-  onOpenSettings,
-  isOpen,
-  onToggleOpen,
-  onOpenExploreGpts,
-  userProfile,
-  onSignOut,
-  projects = [],
-  onCreateProject,
-  onEditProject,
-  onDeleteProject,
-  onMoveSessionToProject,
-  onCreateSessionInProject,
-  onOpenSearch,
-  onOpenPromptLibrary
-}: SidebarProps) {
+  const requestLimit = stats.maxDailyRequests;
+  const tokenLimit = stats.maxDailyTokens;
+
+  const requestPercent = Math.min(100, (todayRequests / requestLimit) * 100);
+  const tokenPercent = Math.min(100, (todayTokens / tokenLimit) * 100);
+
+  const formatTokens = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
+    return num.toString();
+  };
+  const {
+    sessions,
+    activeSessionId,
+    setActiveSessionId: onSelectSession,
+    createNewSession: onCreateSession,
+    deleteSession: onDeleteSession,
+    renameSession: onRenameSession,
+    pinSession,
+    moveSessionToProject: onMoveSessionToProject
+  } = useChatStore();
+
+  const {
+    projects,
+    isSidebarOpen: isOpen,
+    setSidebarOpen,
+    setProjectModalOpen,
+    setActiveEditingProject,
+    deleteProject: onDeleteProject,
+    setSearchOpen: onOpenSearch,
+    setPromptLibraryOpen: onOpenPromptLibrary,
+    setExploreGptsOpen: onOpenExploreGpts,
+    saveProject
+  } = useProjectStore();
+
+  const { toggleSettings: onOpenSettings } = useSettingsStore();
+
+  const onToggleOpen = () => setSidebarOpen(!isOpen);
+  const onTogglePinSession = (id: string) => {
+    const session = sessions.find(s => s.id === id);
+    if (session) {
+      pinSession(id, !session.pinned);
+    }
+  };
+
+  const onCreateProject = () => {
+    setActiveEditingProject(null);
+    setProjectModalOpen(true);
+  };
+
+  const handleSelectFolderAndCreateProject = async () => {
+    if (typeof window === 'undefined' || !(window as any).showDirectoryPicker) {
+      alert('Your browser does not support the File System Access API. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+    try {
+      const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+      const newProjectId = Date.now().toString();
+      
+      // Save project
+      saveProject({
+        id: newProjectId,
+        name: handle.name,
+        description: `Local project workspace for ${handle.name}`,
+        instructions: '',
+        createdAt: Date.now()
+      });
+
+      // Save directory handle
+      await saveDirectoryHandle(newProjectId, handle);
+      
+      // Update local project store state
+      useLocalProjectStore.setState({
+        activeDirectoryHandle: handle,
+        directoryPermissionStatus: 'granted',
+        attachedFiles: []
+      });
+
+      // Scan directory in background
+      useLocalProjectStore.getState().scanDirectory(newProjectId);
+
+      // Create a new session for this project and make it active
+      onCreateSession(newProjectId);
+      
+    } catch (err) {
+      console.warn('Directory picker cancelled or failed:', err);
+    }
+  };
+
+  const onEditProject = (project: Project) => {
+    setActiveEditingProject(project);
+    setProjectModalOpen(true);
+  };
+
+  const onCreateSessionInProject = (projectId: string) => {
+    onCreateSession(projectId);
+  };
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [tempTitle, setTempTitle] = useState('');
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
@@ -373,7 +426,7 @@ export default function Sidebar({
           </button>
           
           <button
-            onClick={onCreateSession}
+            onClick={() => onCreateSession()}
             className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
             title="New chat"
           >
@@ -384,7 +437,7 @@ export default function Sidebar({
         {/* Search Session Bar */}
         <div 
           className="px-3.5 mb-2.5 shrink-0 cursor-pointer" 
-          onClick={() => onOpenSearch && onOpenSearch()}
+          onClick={() => onOpenSearch && onOpenSearch(true)}
         >
           <div className="relative flex items-center cursor-pointer">
             <Search className="absolute left-3 w-3.5 h-3.5 text-slate-550" />
@@ -398,9 +451,9 @@ export default function Sidebar({
         </div>
 
         {/* Explore GPTs & Prompt Library trigger row */}
-        <div className="px-3.5 mb-3.5 shrink-0 grid grid-cols-2 gap-2 select-none">
+        <div className="px-3.5 mb-3.5 shrink-0 grid grid-cols-1 gap-2 select-none">
           <button
-            onClick={onOpenExploreGpts}
+            onClick={() => onOpenExploreGpts && onOpenExploreGpts(true)}
             className="group flex flex-col items-center justify-center gap-1.5 w-full py-3 px-2 rounded-xl bg-slate-900/30 hover:bg-slate-800/60 border border-slate-800/45 hover:border-primary/35 transition-all duration-300 cursor-pointer shadow-sm text-center"
           >
             <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -412,7 +465,7 @@ export default function Sidebar({
             </div>
           </button>
           <button
-            onClick={() => onOpenPromptLibrary && onOpenPromptLibrary()}
+            onClick={() => onOpenPromptLibrary && onOpenPromptLibrary(true)}
             className="group flex flex-col items-center justify-center gap-1.5 w-full py-3 px-2 rounded-xl bg-slate-900/30 hover:bg-slate-800/60 border border-slate-800/45 hover:border-primary/35 transition-all duration-300 cursor-pointer shadow-sm text-center"
           >
             <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -423,127 +476,6 @@ export default function Sidebar({
               <span className="text-[8px] text-slate-500 mt-1 font-sans leading-none">Templates</span>
             </div>
           </button>
-        </div>
-
-        {/* Projects Section */}
-        <div className="px-3.5 mb-3.5 shrink-0 pb-3">
-          <div className="flex items-center justify-between text-slate-400 mb-2 px-1 pb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5 select-none">
-              <FolderOpen className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-              Project Workspaces
-            </span>
-            {onCreateProject && (
-              <button 
-                onClick={onCreateProject}
-                className="p-1 rounded-lg bg-slate-900/30 hover:bg-primary/10 text-slate-400 hover:text-primary border border-slate-800 hover:border-primary/20 transition-all cursor-pointer"
-                title="Create Project"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-thin">
-            {projects.length === 0 ? (
-              <div 
-                onClick={() => onCreateProject && onCreateProject()}
-                className="group flex flex-col items-center justify-center p-3.5 rounded-xl border border-dashed border-slate-800 hover:border-primary/30 bg-slate-900/10 hover:bg-slate-900/30 transition-all duration-300 cursor-pointer select-none text-center"
-              >
-                <FolderPlus className="w-5 h-5 text-slate-600 group-hover:text-slate-400 transition-colors mb-1.5" />
-                <span className="text-[10px] font-bold text-slate-400 group-hover:text-slate-350 transition-colors">Create Workspace</span>
-                <span className="text-[8px] text-slate-600 group-hover:text-slate-500 transition-colors mt-0.5 max-w-[170px]">Organize and custom-instruct your chat sessions</span>
-              </div>
-            ) : (
-              projects.map(project => {
-                const isExpanded = !!expandedProjects[project.id];
-                const projectSessions = filteredSessions.filter(s => s.projectId === project.id);
-                
-                return (
-                  <div key={project.id} className="rounded-lg bg-slate-950/30 border border-slate-800/40 relative">
-                    <div 
-                      onClick={() => setExpandedProjects(prev => ({ ...prev, [project.id]: !isExpanded }))}
-                      className={`group flex items-center justify-between py-1.5 px-2 hover:bg-slate-900/30 cursor-pointer select-none text-xs ${
-                        isExpanded ? 'rounded-t-lg' : 'rounded-lg'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 text-slate-300 font-semibold truncate flex-1 pr-2">
-                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-slate-550" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-550" />}
-                        {isExpanded ? <FolderOpen className="w-3.5 h-3.5 text-primary" /> : <Folder className="w-3.5 h-3.5 text-primary" />}
-                        <span className="truncate" title={project.name}>{project.name}</span>
-                        {projectSessions.length > 0 && (
-                          <span className="text-[9px] bg-slate-800 text-slate-400 px-1 rounded-full">{projectSessions.length}</span>
-                        )}
-                      </div>
-                      
-                      {/* Project actions (New Chat, Edit, Delete) on hover */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {onCreateSessionInProject && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onCreateSessionInProject(project.id);
-                              // Auto expand project so user can see the new chat session in the list
-                              setExpandedProjects(prev => ({ ...prev, [project.id]: true }));
-                            }}
-                            className="p-0.5 rounded text-slate-550 hover:text-white hover:bg-slate-800 cursor-pointer"
-                            title="New Chat in Project"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        )}
-                        {onEditProject && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEditProject(project);
-                            }}
-                            className="p-0.5 rounded text-slate-550 hover:text-white hover:bg-slate-800 cursor-pointer"
-                            title="Edit project"
-                          >
-                            <Edit3 className="w-3 h-3" />
-                          </button>
-                        )}
-                        {onDeleteProject && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm(`Are you sure you want to delete "${project.name}"? Chats inside will be moved back to general list.`)) {
-                                onDeleteProject(project.id);
-                              }
-                            }}
-                            className="p-0.5 rounded text-slate-550 hover:text-rose-500 hover:bg-rose-950/20 cursor-pointer"
-                            title="Delete project"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Collapsible Nested Chats */}
-                    {isExpanded && (
-                      <div className="pl-2.5 pr-1 py-1 space-y-0.5 bg-slate-950/20 border-t border-slate-800/10 rounded-b-lg">
-                        {projectSessions.length === 0 ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onCreateSessionInProject) {
-                                onCreateSessionInProject(project.id);
-                              }
-                            }}
-                            className="w-full text-left text-[10px] text-slate-600 hover:text-primary italic px-2 py-1 select-none cursor-pointer flex items-center gap-1 hover:bg-slate-800/30 rounded-md transition-colors"
-                          >
-                            <Plus className="w-2.5 h-2.5" /> No chats. Click to add one.
-                          </button>
-                        ) : (
-                          projectSessions.map(session => renderSessionItem(session))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
         </div>
 
         {/* Chat List Grouped Chronologically */}
@@ -584,38 +516,68 @@ export default function Sidebar({
 
         {/* User Settings Footer */}
         <div className="p-3.5 bg-slate-950 border-t border-slate-800 shrink-0 space-y-2 sidebar-footer-row">
+          {/* Daily Quota Meter */}
+          <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 space-y-2.5 mb-1.5 text-[11px] shadow-inner font-sans select-none animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-center justify-between text-slate-400 font-semibold mb-0.5">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                Daily Quota Meter
+              </span>
+              <span className="text-[9px] text-slate-500 font-mono">Today</span>
+            </div>
+            
+            {/* Requests gauge */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-slate-400 font-medium text-[10px]">
+                <span>Requests</span>
+                <span className="font-mono text-slate-350">{todayRequests} / {requestLimit}</span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-950/80 rounded-full overflow-hidden border border-slate-800/40">
+                <div 
+                  className={`h-full rounded-full transition-all duration-500 ease-out ${
+                    requestPercent > 90 ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' :
+                    requestPercent > 70 ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' :
+                    'bg-primary shadow-[0_0_8px_rgba(168,199,250,0.5)]'
+                  }`}
+                  style={{ width: `${requestPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Tokens gauge */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-slate-400 font-medium text-[10px]">
+                <span>Estimated Tokens</span>
+                <span className="font-mono text-slate-350">{formatTokens(todayTokens)} / {formatTokens(tokenLimit)}</span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-950/80 rounded-full overflow-hidden border border-slate-800/40">
+                <div 
+                  className={`h-full rounded-full transition-all duration-500 ease-out ${
+                    tokenPercent > 90 ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' :
+                    tokenPercent > 70 ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' :
+                    'bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.5)]'
+                  }`}
+                  style={{ width: `${tokenPercent}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
           <button
-            onClick={onOpenSettings}
+            onClick={() => onOpenSettings(true)}
             className="flex items-center gap-3 w-full py-2 px-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all text-sm cursor-pointer border border-transparent"
           >
-            {userProfile?.avatar_url ? (
-              <img 
-                src={userProfile.avatar_url} 
-                alt={userProfile.name} 
-                className="w-8 h-8 rounded-full object-cover shrink-0 select-none" 
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-[10px] font-bold text-slate-950 shadow-inner select-none shrink-0 border border-slate-800">
-                {(userProfile?.name || 'AI').slice(0, 2).toUpperCase()}
-              </div>
-            )}
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-[10px] font-bold text-slate-950 shadow-inner select-none shrink-0 border border-slate-800">
+              AI
+            </div>
             <div className="flex-1 text-left min-w-0">
               <div className="text-xs font-semibold text-slate-100 truncate leading-normal">
-                {userProfile?.name || 'AI User'}
+                AI User
               </div>
               <div className="text-[10px] text-slate-500 truncate leading-none">Settings & Instructions</div>
             </div>
             <Settings className="w-4 h-4 text-slate-500 shrink-0" />
           </button>
-          
-          {onSignOut && (
-            <button
-              onClick={onSignOut}
-              className="flex items-center justify-center w-full py-1.5 px-2.5 rounded-lg border border-slate-800 text-slate-500 hover:text-rose-500 hover:bg-rose-950/20 transition-all text-xs font-semibold cursor-pointer"
-            >
-              Sign Out
-            </button>
-          )}
         </div>
         </>
         ) : (
@@ -636,7 +598,7 @@ export default function Sidebar({
 
               {/* New Chat */}
               <button
-                onClick={onCreateSession}
+                onClick={() => onCreateSession()}
                 className="p-2.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
                 title="New chat"
               >
@@ -646,7 +608,7 @@ export default function Sidebar({
               {/* Search */}
               {onOpenSearch && (
                 <button
-                  onClick={onOpenSearch}
+                  onClick={() => onOpenSearch(true)}
                   className="p-2.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
                   title="Search chats & contents"
                 >
@@ -656,7 +618,7 @@ export default function Sidebar({
 
               {/* Explore GPTs */}
               <button
-                onClick={onOpenExploreGpts}
+                onClick={() => onOpenExploreGpts && onOpenExploreGpts(true)}
                 className="p-2.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
                 title="Explore Custom GPTs"
               >
@@ -666,7 +628,7 @@ export default function Sidebar({
               {/* Prompt Library */}
               {onOpenPromptLibrary && (
                 <button
-                  onClick={onOpenPromptLibrary}
+                  onClick={() => onOpenPromptLibrary(true)}
                   className="p-2.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
                   title="Prompt Library Templates"
                 >
@@ -679,7 +641,7 @@ export default function Sidebar({
             <div className="flex flex-col items-center gap-4 w-full">
               {/* Settings Trigger Icon */}
               <button
-                onClick={onOpenSettings}
+                onClick={() => onOpenSettings(true)}
                 className="p-2.5 rounded-xl text-slate-500 hover:text-slate-100 hover:bg-slate-900 transition-all cursor-pointer"
                 title="Settings & Instructions"
               >
@@ -688,21 +650,13 @@ export default function Sidebar({
 
               {/* Avatar Circle */}
               <button
-                onClick={onOpenSettings}
+                onClick={() => onOpenSettings(true)}
                 className="cursor-pointer transition-transform hover:scale-105"
                 title="User Profile Settings"
               >
-                {userProfile?.avatar_url ? (
-                  <img 
-                    src={userProfile.avatar_url} 
-                    alt={userProfile.name} 
-                    className="w-8 h-8 rounded-full border border-slate-800 object-cover shrink-0 select-none" 
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-[10px] font-bold text-slate-950 shadow-md select-none shrink-0 border border-slate-800">
-                    {(userProfile?.name || 'AI').slice(0, 2).toUpperCase()}
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-[10px] font-bold text-slate-955 shadow-md select-none shrink-0 border border-slate-800">
+                    AI
                   </div>
-                )}
               </button>
             </div>
           </div>

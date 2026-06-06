@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, FolderPlus, Info, Save } from 'lucide-react';
+import { X, FolderPlus, Info, Save, FolderOpen } from 'lucide-react';
+import { useProjectStore } from '../store/useProjectStore';
+import { useLocalProjectStore } from '../store/useLocalProjectStore';
 
 export interface Project {
   id: string;
@@ -11,22 +13,24 @@ export interface Project {
   createdAt: number;
 }
 
-interface ProjectModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  project: Project | null; // Null means creating a new one
-  onSave: (name: string, description: string, instructions: string) => void;
-}
+export default function ProjectModal() {
+  const {
+    isProjectModalOpen: isOpen,
+    setProjectModalOpen,
+    activeEditingProject: project,
+    saveProject
+  } = useProjectStore();
 
-export default function ProjectModal({
-  isOpen,
-  onClose,
-  project,
-  onSave,
-}: ProjectModalProps) {
+  const {
+    loadSavedDirectory
+  } = useLocalProjectStore();
+
+  const onClose = () => setProjectModalOpen(false);
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [projectId, setProjectId] = useState('');
 
   // Reset fields when modal opens or active project changes
   useEffect(() => {
@@ -35,21 +39,32 @@ export default function ProjectModal({
         setName(project.name);
         setDescription(project.description);
         setInstructions(project.instructions || '');
+        setProjectId(project.id);
+        loadSavedDirectory(project.id);
       } else {
         setName('');
         setDescription('');
         setInstructions('');
+        const newId = Date.now().toString();
+        setProjectId(newId);
+        loadSavedDirectory(newId);
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [project, isOpen]);
+  }, [project, isOpen, loadSavedDirectory]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSave(name.trim(), description.trim(), instructions.trim());
+    saveProject({
+      id: project?.id || projectId,
+      name: name.trim(),
+      description: description.trim(),
+      instructions: instructions.trim(),
+      createdAt: project?.createdAt || Date.now()
+    });
     onClose();
   };
 
@@ -131,8 +146,9 @@ export default function ProjectModal({
             />
           </div>
 
+
           {/* Actions Footer */}
-          <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-700">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-700">
             <button
               type="button"
               onClick={onClose}

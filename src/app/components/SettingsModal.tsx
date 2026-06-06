@@ -1,31 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Key, Info, User, Brain, Save, Plus, Trash2, ChevronDown, Edit2, Upload, DatabaseBackup, Sun, Moon, Monitor } from 'lucide-react';
+import { X, Key, Info, User, Brain, Save, Plus, Trash2, ChevronDown, Edit2, Upload, DatabaseBackup, Sun, Moon, Monitor, Sliders, Activity } from 'lucide-react';
 
-interface Settings {
-  apiKey: string;
-  model: string;
-  temperature: number;
-  persona: string;
-  customSystemPrompt: string;
-  theme?: string;
-  appearanceMode?: string;
-  provider?: string;
-}
-
-interface Memory {
-  id: string;
-  key: string;
-  value: string;
-}
-
-interface SettingsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  settings: Settings;
-  onSaveSettings: (settings: Settings) => void;
-}
+import { useSettingsStore, Settings } from '../store/useSettingsStore';
+import { useProjectStore, MemoryItem } from '../store/useProjectStore';
+import { useUsageStore, getTodayKey } from '../store/useUsageStore';
 
 const PERSONAS = [
   { id: 'general', name: 'General Assistant', description: 'Helpful, precise, and general purpose.' },
@@ -51,13 +31,14 @@ const BACKUP_KEYS = [
   'gemma_chat_custom_gpts',
 ];
 
-export default function SettingsModal({
-  isOpen,
-  onClose,
-  settings,
-  onSaveSettings,
-}: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<'general' | 'memory'>('general');
+export default function SettingsModal() {
+  const { isSettingsOpen: isOpen, toggleSettings, settings, setSettings } = useSettingsStore();
+  const onClose = () => toggleSettings(false);
+  
+  const { memories, saveMemory, updateMemory, deleteMemory, clearAllMemories } = useProjectStore();
+  const { stats, setDailyLimits, resetStats } = useUsageStore();
+
+  const [activeTab, setActiveTab] = useState<'general' | 'memory' | 'usage'>('general');
 
   // General States
   const [apiKey, setApiKey] = useState(settings.apiKey);
@@ -67,17 +48,28 @@ export default function SettingsModal({
   const [theme, setTheme] = useState(settings.theme || 'default');
   const [appearanceMode, setAppearanceMode] = useState(settings.appearanceMode || 'dark');
   const [provider, setProvider] = useState(settings.provider || 'gemini');
+  const [githubUsername, setGithubUsername] = useState(settings.githubUsername || '');
+  const [githubToken, setGithubToken] = useState(settings.githubToken || '');
+
+  // Usage Limits State
+  const [maxDailyRequests, setMaxDailyRequests] = useState(stats.maxDailyRequests);
+  const [maxDailyTokens, setMaxDailyTokens] = useState(stats.maxDailyTokens);
+
+  useEffect(() => {
+    if (isOpen) {
+      setMaxDailyRequests(stats.maxDailyRequests);
+      setMaxDailyTokens(stats.maxDailyTokens);
+    }
+  }, [isOpen, stats.maxDailyRequests, stats.maxDailyTokens]);
   const [keyValidating, setKeyValidating] = useState(false);
   const [keyValidResult, setKeyValidResult] = useState<'valid' | 'invalid' | null>(null);
 
   // Memory States
-  const [memories, setMemories] = useState<Memory[]>([]);
   const [newMemoryKey, setNewMemoryKey] = useState('');
   const [newMemoryValue, setNewMemoryValue] = useState('');
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
   const [editMemKey, setEditMemKey] = useState('');
   const [editMemValue, setEditMemValue] = useState('');
-
 
   // Backup/Restore
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -93,15 +85,9 @@ export default function SettingsModal({
         setTheme(settings.theme || 'default');
         setAppearanceMode(settings.appearanceMode || 'dark');
         setProvider(settings.provider || 'gemini');
+        setGithubUsername(settings.githubUsername || '');
+        setGithubToken(settings.githubToken || '');
         setKeyValidResult(null);
-
-        // Load Memories
-        const savedMemories = localStorage.getItem('gemma_memories');
-        if (savedMemories) {
-          try { setMemories(JSON.parse(savedMemories)); } catch { setMemories([]); }
-        } else {
-          setMemories([]);
-        }
       }, 0);
       return () => clearTimeout(syncTimer);
     }
@@ -124,32 +110,20 @@ export default function SettingsModal({
   const handleAddMemory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMemoryKey.trim() || !newMemoryValue.trim()) return;
-
-    const newMem: Memory = {
-      id: Date.now().toString(),
-      key: newMemoryKey.trim(),
-      value: newMemoryValue.trim()
-    };
-
-    const updated = [...memories, newMem];
-    setMemories(updated);
-    localStorage.setItem('gemma_memories', JSON.stringify(updated));
+    saveMemory(newMemoryKey.trim(), newMemoryValue.trim());
     setNewMemoryKey('');
     setNewMemoryValue('');
   };
 
   const handleDeleteMemory = (id: string) => {
-    const updated = memories.filter(m => m.id !== id);
-    setMemories(updated);
-    localStorage.setItem('gemma_memories', JSON.stringify(updated));
+    deleteMemory(id);
   };
 
   const handleClearAllMemory = () => {
-    setMemories([]);
-    localStorage.setItem('gemma_memories', JSON.stringify([]));
+    clearAllMemories();
   };
 
-  const handleEditMemory = (mem: Memory) => {
+  const handleEditMemory = (mem: MemoryItem) => {
     setEditingMemoryId(mem.id);
     setEditMemKey(mem.key);
     setEditMemValue(mem.value);
@@ -157,14 +131,16 @@ export default function SettingsModal({
 
   const handleUpdateMemory = (id: string) => {
     if (!editMemKey.trim() || !editMemValue.trim()) return;
-    const updated = memories.map(m =>
-      m.id === id ? { ...m, key: editMemKey.trim(), value: editMemValue.trim() } : m
-    );
-    setMemories(updated);
-    localStorage.setItem('gemma_memories', JSON.stringify(updated));
+    updateMemory(id, editMemKey.trim(), editMemValue.trim());
     setEditingMemoryId(null);
     setEditMemKey('');
     setEditMemValue('');
+  };
+
+  const handleSaveLimits = (e: React.FormEvent) => {
+    e.preventDefault();
+    setDailyLimits(Number(maxDailyRequests), Number(maxDailyTokens));
+    alert('Daily resource limits updated!');
   };
 
   const handleCancelEdit = () => {
@@ -177,7 +153,7 @@ export default function SettingsModal({
   const handleExportBackup = () => {
     const data: Record<string, unknown> = {};
     for (const key of BACKUP_KEYS) {
-      const val = localStorage.getItem(key);
+      const val = key === 'gemma_chat_settings' ? sessionStorage.getItem(key) : localStorage.getItem(key);
       if (val !== null) {
         try { data[key] = JSON.parse(val); } catch { data[key] = val; }
       }
@@ -200,7 +176,11 @@ export default function SettingsModal({
         const data = JSON.parse(ev.target?.result as string);
         for (const key of BACKUP_KEYS) {
           if (key in data) {
-            localStorage.setItem(key, JSON.stringify(data[key]));
+            if (key === 'gemma_chat_settings') {
+              sessionStorage.setItem(key, JSON.stringify(data[key]));
+            } else {
+              localStorage.setItem(key, JSON.stringify(data[key]));
+            }
           }
         }
         window.location.reload();
@@ -233,15 +213,22 @@ export default function SettingsModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSaveSettings({
+    const updatedApiKeys = {
+      ...(settings.apiKeys || {}),
+      [provider]: apiKey.trim()
+    };
+    setSettings({
       apiKey: apiKey.trim(),
       model: settings.model,
       temperature,
       persona,
-      customSystemPrompt,
+      customSystemPrompt: customSystemPrompt.trim(),
       theme,
       appearanceMode,
-      provider
+      provider,
+      apiKeys: updatedApiKeys,
+      githubUsername: githubUsername.trim(),
+      githubToken: githubToken.trim()
     });
     onClose();
   };
@@ -275,15 +262,16 @@ export default function SettingsModal({
         {/* Tab Controls */}
         <div className="flex items-center border-b border-slate-700 bg-slate-950/30 px-6 shrink-0 text-xs settings-tab-bar">
           {[
-            { id: 'general', label: 'General', Icon: User },
-            { id: 'memory', label: 'AI Memory Dashboard', Icon: Brain },
+            { id: 'general', label: 'General Settings', Icon: User },
+            { id: 'memory', label: 'AI Memory Bank', Icon: Brain },
+            { id: 'usage', label: 'Usage Limits & Stats', Icon: Sliders },
           ].map(tab => {
             const Icon = tab.Icon;
             const active = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as 'general' | 'memory')}
+                onClick={() => setActiveTab(tab.id as 'general' | 'memory' | 'usage')}
                 className={`py-3 px-4 font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
                   active 
                     ? 'border-primary text-primary' 
@@ -320,7 +308,11 @@ export default function SettingsModal({
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => { setProvider(p.id); setApiKey(''); setKeyValidResult(null); }}
+                      onClick={() => {
+                        setProvider(p.id);
+                        setApiKey(settings.apiKeys?.[p.id] || '');
+                        setKeyValidResult(null);
+                      }}
                       className={`py-1.5 rounded-xl border text-[10px] font-bold transition-all cursor-pointer ${
                         provider === p.id
                           ? `border-primary bg-primary/10 ${p.color}`
@@ -346,7 +338,7 @@ export default function SettingsModal({
                   <button
                     type="button"
                     onClick={handleValidateKey}
-                    disabled={!apiKey.trim() || keyValidating}
+                    disabled={keyValidating}
                     className="px-3 py-2 text-[10px] font-bold rounded-xl bg-slate-800 hover:bg-primary hover:text-[#131314] text-slate-300 disabled:opacity-40 transition-all shrink-0 cursor-pointer"
                   >
                     {keyValidating ? (
@@ -470,6 +462,7 @@ export default function SettingsModal({
                   className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
                 />
               </div>
+
 
               {/* Footer Save */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-700 shrink-0">
@@ -656,6 +649,123 @@ export default function SettingsModal({
                 </div>
               </div>
 
+            </div>
+          )}
+
+          {/* Usage Limits & Stats Tab */}
+          {activeTab === 'usage' && (
+            <div className="space-y-5">
+              <div className="p-3.5 bg-slate-950 border border-slate-750 rounded-2xl flex flex-col gap-4 font-sans">
+                <div className="flex items-center gap-2 text-primary">
+                  <Activity className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Today's Resource Quota</span>
+                </div>
+                
+                {/* Requests Meter */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-300">
+                    <span>Daily Requests Used</span>
+                    <span>{stats.dailyRequests[getTodayKey()] || 0} / {stats.maxDailyRequests}</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        (stats.dailyRequests[getTodayKey()] || 0) >= stats.maxDailyRequests
+                          ? 'bg-rose-500'
+                          : (stats.dailyRequests[getTodayKey()] || 0) >= stats.maxDailyRequests * 0.8
+                            ? 'bg-yellow-500'
+                            : 'bg-primary'
+                      }`}
+                      style={{ width: `${Math.min(100, Math.round(((stats.dailyRequests[getTodayKey()] || 0) / stats.maxDailyRequests) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Tokens Meter */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-300">
+                    <span>Estimated Daily Tokens</span>
+                    <span>{stats.dailyTokens[getTodayKey()] || 0} / {stats.maxDailyTokens}</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        (stats.dailyTokens[getTodayKey()] || 0) >= stats.maxDailyTokens
+                          ? 'bg-rose-500'
+                          : (stats.dailyTokens[getTodayKey()] || 0) >= stats.maxDailyTokens * 0.8
+                            ? 'bg-yellow-500'
+                            : 'bg-primary'
+                      }`}
+                      style={{ width: `${Math.min(100, Math.round(((stats.dailyTokens[getTodayKey()] || 0) / stats.maxDailyTokens) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Historical usage counters */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl text-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Historical Requests</span>
+                  <span className="text-xl font-bold text-slate-100 block mt-1.5">{stats.totalRequests}</span>
+                </div>
+                <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl text-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Estimated Tokens</span>
+                  <span className="text-xl font-bold text-slate-100 block mt-1.5">{stats.totalTokens.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Usage configuration form */}
+              <form onSubmit={handleSaveLimits} className="p-4 bg-slate-950 border border-slate-700 rounded-2xl space-y-4">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1 block">
+                  Configure Resource Budgets
+                </span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">Max Requests / Day</label>
+                    <input
+                      type="number"
+                      value={maxDailyRequests}
+                      onChange={(e) => setMaxDailyRequests(Number(e.target.value))}
+                      required
+                      min={1}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">Max Tokens / Day</label>
+                    <input
+                      type="number"
+                      value={maxDailyTokens}
+                      onChange={(e) => setMaxDailyTokens(Number(e.target.value))}
+                      required
+                      min={100}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="flex-1 py-2 bg-primary hover:bg-primary/80 text-[#131314] font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5" /> Save Budgets
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to reset all analytics usage statistics? This cannot be undone.')) {
+                        resetStats();
+                        setMaxDailyRequests(100);
+                        setMaxDailyTokens(100000);
+                      }
+                    }}
+                    className="py-2 px-4 bg-slate-800 hover:bg-rose-950/20 text-slate-450 hover:text-rose-450 border border-slate-700 hover:border-rose-900/35 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                  >
+                    Reset Analytics
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 

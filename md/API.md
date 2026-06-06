@@ -88,7 +88,7 @@ Test whether an API key is valid by sending a lightweight probe request to the c
 ### OpenAI
 
 - **Endpoint**: `https://api.openai.com/v1/chat/completions`
-- **Models**: `gpt-4o`, `gpt-4o-mini`, `o1`
+- **Models**: `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-4o`, `gpt-4o-mini`, `o1`
 - **Streaming**: Implemented via custom SSE buffer reader
 
 ### Anthropic Claude
