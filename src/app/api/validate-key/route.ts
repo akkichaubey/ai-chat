@@ -4,12 +4,27 @@ export async function POST(request: NextRequest) {
   try {
     const { apiKey, provider = 'gemini' } = await request.json();
 
-    if (!apiKey) {
+    let keyToValidate = apiKey;
+    if (!keyToValidate) {
+      if (provider === 'gemini') {
+        keyToValidate = process.env.GEMINI_API_KEY;
+      } else if (provider === 'openai') {
+        keyToValidate = process.env.OPENAI_API_KEY;
+      } else if (provider === 'anthropic') {
+        keyToValidate = process.env.ANTHROPIC_API_KEY;
+      } else if (provider === 'openrouter') {
+        keyToValidate = process.env.OPENROUTER_API_KEY;
+      } else if (provider === 'groq') {
+        keyToValidate = process.env.GROQ_API_KEY;
+      }
+    }
+
+    if (!keyToValidate) {
       return Response.json({ valid: false, error: 'No API key provided' }, { status: 400 });
     }
 
     if (provider === 'gemini') {
-      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keyToValidate}`);
       if (resp.ok) return Response.json({ valid: true });
       return Response.json({ valid: false, error: `Gemini: ${resp.status} ${resp.statusText}` });
     }
@@ -19,16 +34,16 @@ export async function POST(request: NextRequest) {
 
     if (provider === 'openai') {
       testUrl = 'https://api.openai.com/v1/models';
-      headers = { 'Authorization': `Bearer ${apiKey}` };
+      headers = { 'Authorization': `Bearer ${keyToValidate}` };
     } else if (provider === 'anthropic') {
       testUrl = 'https://api.anthropic.com/v1/models';
-      headers = { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' };
+      headers = { 'x-api-key': keyToValidate, 'anthropic-version': '2023-06-01' };
     } else if (provider === 'openrouter') {
       testUrl = 'https://openrouter.ai/api/v1/models';
-      headers = { 'Authorization': `Bearer ${apiKey}` };
+      headers = { 'Authorization': `Bearer ${keyToValidate}` };
     } else if (provider === 'groq') {
       testUrl = 'https://api.groq.com/openai/v1/models';
-      headers = { 'Authorization': `Bearer ${apiKey}` };
+      headers = { 'Authorization': `Bearer ${keyToValidate}` };
     } else {
       return Response.json({ valid: false, error: 'Unknown provider' }, { status: 400 });
     }

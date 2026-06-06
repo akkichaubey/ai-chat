@@ -35,7 +35,7 @@
 ```text
 User Browser
   └─ localStorage
-       ├─ api_keys          (encrypted per-provider API keys)
+       ├─ api_keys          (per-provider API keys)
        ├─ chat_sessions     (all conversations)
        ├─ messages_map      (all messages per session)
        ├─ projects          (workspace projects)
@@ -44,6 +44,11 @@ User Browser
        ├─ custom_prompts    (prompt library entries)
        ├─ favorite_prompts  (favorited prompt IDs)
        └─ settings          (theme, temperature, persona, etc.)
+  └─ IndexedDB
+       ├─ project_directories  (FileSystemDirectoryHandle per project)
+       └─ file_contents        (cached file content by projectId:path)
+  └─ In-Memory (session only)
+       └─ GitHub repo files    (useGitHubRepoStore — cleared on page reload)
 ```
 
 ---
@@ -64,9 +69,23 @@ User Browser
 
 ### State Management
 
-- All persistent state lives in `localStorage`
-- No Redux, Zustand, or global state management library required
-- React hooks manage ephemeral UI state (e.g., open/close modals)
+- **Zustand** — all persistent and ephemeral state managed via Zustand stores
+- **localStorage** — chat sessions, messages, projects, memories, custom GPTs, prompts, settings
+- **IndexedDB** — large local codebase file content (via `useLocalProjectStore`)
+- **In-memory** — GitHub repo file cache (via `useGitHubRepoStore`, session-only)
+- React hooks manage local UI state (modal open/close, input values, etc.)
+
+### Zustand Stores
+
+| Store | Responsibility |
+|-------|----------------|
+| `useChatStore` | Chat sessions, messages, streaming, 9-layer AI context injection |
+| `useSettingsStore` | API keys, model, persona, temperature, theme, GitHub username |
+| `useProjectStore` | Projects, AI memory bank |
+| `useLocalProjectStore` | Local codebase (File System Access API + IndexedDB cache) |
+| `useGitHubRepoStore` | GitHub public repo reader (REST API + in-memory cache) |
+| `useUsageStore` | Daily request/token usage tracking |
+| `useModelMonitorStore` | Model health check pings |
 
 ---
 
@@ -117,6 +136,26 @@ interface AIProvider {
   validateKey(key: string): Promise<boolean>;
 }
 ```
+
+---
+
+## AI Context Injection Pipeline
+
+Every AI message passes through a 9-layer context injection pipeline in `useChatStore.ts`:
+
+```text
+1. Base System Prompt        — session or global settings persona
+2. Project Instructions      — workspace-specific instructions (if in a project)
+3. Local Codebase Context    — indexed files via IndexedDB (if local folder connected)
+4. GitHub Repo Context       — summary + keyword-matched files (if GitHub repo connected)
+5. GitHub Profile Context    — developer profile data (if username configured in settings)
+6. AI Memory Bank            — user facts and preferences committed to memory
+7. Writing Style Guide       — Concise / Formal / Explanatory / Learning
+8. AI Skill Mode             — Code Debugger / UI Inspector / Language Tutor
+9. Sandbox Format            — multi-file artifact output format instructions
+```
+
+This pipeline ensures every AI response is maximally context-aware without the user needing to re-explain their project on every message.
 
 ---
 

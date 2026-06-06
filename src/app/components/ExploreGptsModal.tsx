@@ -14,14 +14,8 @@ export interface CustomGpt {
   temperature: number;
 }
 
-interface ExploreGptsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  customGpts: CustomGpt[];
-  onSaveGpt: (gpt: CustomGpt) => void;
-  onDeleteGpt: (id: string) => void;
-  onSelectGpt: (gpt: CustomGpt) => void;
-}
+import { useProjectStore } from '../store/useProjectStore';
+import { useChatStore } from '../store/useChatStore';
 
 const FEATURED_GPTS: CustomGpt[] = [
   {
@@ -95,14 +89,23 @@ const GRADIENT_THEMES = [
   { id: 'charcoal', class: 'bg-gradient-to-tr from-[#2d2f31] to-[#1e1f20]' }
 ];
 
-export default function ExploreGptsModal({
-  isOpen,
-  onClose,
-  customGpts,
-  onSaveGpt,
-  onDeleteGpt,
-  onSelectGpt
-}: ExploreGptsModalProps) {
+export default function ExploreGptsModal() {
+  const {
+    isExploreGptsOpen: isOpen,
+    setExploreGptsOpen,
+    customGpts,
+    saveCustomGpt: onSaveGpt,
+    deleteCustomGpt: onDeleteGpt
+  } = useProjectStore();
+
+  const { selectGpt: onSelectGpt } = useChatStore();
+
+  const onClose = () => setExploreGptsOpen(false);
+
+  const handleSelectGpt = (gpt: CustomGpt) => {
+    onSelectGpt(gpt);
+    onClose();
+  };
   const [view, setView] = useState<'explore' | 'editor'>('explore');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -283,7 +286,7 @@ export default function ExploreGptsModal({
                         {filteredGpts.filter(g => !g.id.startsWith('system-')).map(gpt => (
                           <div
                             key={gpt.id}
-                            onClick={() => onSelectGpt(gpt)}
+                            onClick={() => handleSelectGpt(gpt)}
                             className="group flex gap-4 p-4 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-slate-600 transition-all cursor-pointer relative"
                           >
                             <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 ${gpt.avatarBg}`}>
@@ -331,7 +334,7 @@ export default function ExploreGptsModal({
                         {filteredGpts.filter(g => g.id.startsWith('system-')).map(gpt => (
                           <div
                             key={gpt.id}
-                            onClick={() => onSelectGpt(gpt)}
+                            onClick={() => handleSelectGpt(gpt)}
                             className="flex gap-4 p-4 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-slate-600 transition-all cursor-pointer"
                           >
                             <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 ${gpt.avatarBg}`}>

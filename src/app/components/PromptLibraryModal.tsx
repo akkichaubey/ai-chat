@@ -74,17 +74,16 @@ const PREMADE_PROMPTS: SavedPrompt[] = [
   }
 ];
 
-interface PromptLibraryModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSelectPrompt: (content: string) => void;
-}
+import { useProjectStore } from '../store/useProjectStore';
 
-export default function PromptLibraryModal({
-  isOpen,
-  onClose,
-  onSelectPrompt,
-}: PromptLibraryModalProps) {
+export default function PromptLibraryModal() {
+  const {
+    isPromptLibraryOpen: isOpen,
+    setPromptLibraryOpen,
+    setInjectedPrompt: onSelectPrompt
+  } = useProjectStore();
+
+  const onClose = () => setPromptLibraryOpen(false);
   const [activeTab, setActiveTab] = useState<'all' | 'developer' | 'writing' | 'marketing' | 'seo' | 'business' | 'custom' | 'favorites'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   

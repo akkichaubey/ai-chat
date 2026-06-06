@@ -362,9 +362,10 @@ Users can switch models mid-conversation:
  • Gemma 2 (27B)
  • Gemini 2.5 Flash
  • Gemini 2.5 Pro
- • GPT-4o (OpenAI)
+ • GPT-5.5 / GPT-5.4 / GPT-5.4-mini (OpenAI)
+ • GPT-4o / GPT-4o-mini (OpenAI)
  • Claude 3.5 Sonnet (Anthropic)
- • Llama 3 (Groq)
+ • Llama 3.3 70B (Groq)
 ```
 
 ### Deliverables
@@ -441,6 +442,107 @@ Extend the platform to support rich media input and output.
 - [ ] PDF deep intelligence
 - [ ] DOCX / XLSX / CSV document analysis
 - [ ] Image generation
+
+---
+
+## Phase 18 — Local Codebase Reader ✅ (Complete)
+
+Connect any local project folder and give the AI full understanding of your codebase — directly from your browser with no file uploads.
+
+### How It Works
+
+- User selects a local project folder using the File System Access API (browser-native, no server upload)
+- System recursively scans all subfolders and source files
+- Files are cached in IndexedDB with freshness detection (lastModified + size comparison)
+- AI receives a framework-aware codebase summary + relevant file contents on every message
+
+### Features
+
+- **Full Recursive Scanning** — reads all nested subfolders at any depth
+- **IndexedDB File Cache** — fast re-reads; only re-fetches changed files
+- **Framework Auto-Detection** — Next.js, React, Vue, Laravel, Django, Express, NestJS, etc.
+- **Smart File Grounding** — keyword search matches relevant files to each query
+- **Chat with Codebase Mode** — toggle to always include full file context
+- **Codebase Explorer Side Panel** — file tree, folder expand/collapse, file search, attach toggle
+- **Progress Bar** — real-time indexing progress
+- **Attach Files to Message** — manually pin specific files into AI context
+- **Re-authorization Banner** — prompts user to re-grant folder access after page reload
+
+### Supported File Types
+
+```text
+.ts .tsx .js .jsx .html .css .scss .json .md .yaml .yml
+.php .py .go .rs .java .c .cpp .rb .sql .env .toml .graphql .prisma
+```
+
+### Excluded Automatically
+
+```text
+node_modules / .git / dist / build / .next / out / coverage / __pycache__
+Binary files: .png .jpg .gif .mp4 .woff .pdf .zip .exe etc.
+Files larger than 512 KB
+```
+
+### Deliverables
+
+- [x] File System Access API folder picker
+- [x] Recursive subfolder traversal (including deeply nested files)
+- [x] IndexedDB file content caching
+- [x] Framework detection and project summary generation
+- [x] Smart keyword grounding per message
+- [x] Chat with Codebase toggle
+- [x] Codebase Explorer side panel with file tree, search, and attach toggle
+- [x] Re-authorization flow for page reloads
+
+---
+
+## Phase 19 — GitHub Public Repo Reader ✅ (Complete)
+
+Paste any public GitHub repository URL and let the AI read the entire codebase directly from GitHub — no git clone, no local files needed.
+
+### How It Works
+
+- User pastes a GitHub URL (e.g. `https://github.com/facebook/react`)
+- System fetches the full recursive file tree via GitHub REST API
+- Source files are fetched in batches and cached in memory for the session
+- AI receives repo summary + keyword-matched file contents on every message
+
+### Features
+
+- **Zero Setup** — no git clone, no local files, no authentication required
+- **Auto Branch Detection** — uses repo's default branch automatically
+- **Full File Tree** — recursive tree with folder expand/collapse and file search in side panel
+- **Smart Keyword Matching** — injects only files relevant to each user query
+- **Framework Detection** — reads `package.json` to detect Next.js, React, Vue, etc.
+- **Optional PAT Token** — Personal Access Token field to avoid GitHub's 60 req/hr rate limit
+- **Green Dot Badge** — 🐙 toolbar button shows live connection status
+- **Disconnect Button** — one click to clear all repo context
+
+### Limits
+
+| Limit | Value |
+|-------|-------|
+| Max files indexed | 150 files per repo |
+| Max file size | 512 KB per file |
+| Batch size | 5 concurrent requests |
+| Unauthenticated rate limit | 60 requests/hour |
+| Authenticated rate limit (PAT) | 5,000 requests/hour |
+
+### Deliverables
+
+- [x] GitHub REST API integration (no OAuth required)
+- [x] URL parsing for `owner/repo` extraction
+- [x] Default branch auto-detection
+- [x] Recursive tree fetch and filtering
+- [x] Batched file content fetching (5 concurrent)
+- [x] Binary and build artifact exclusion
+- [x] Framework detection from `package.json`
+- [x] Repo summary injection into system prompt
+- [x] Keyword-matched file injection per message
+- [x] Side panel with folder tree, file search, and expand/collapse
+- [x] Optional Personal Access Token (PAT) support
+- [x] Connection status badge in toolbar
+- [x] Disconnect functionality
 
 ---
 

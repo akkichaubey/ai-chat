@@ -47,14 +47,7 @@ interface Attachment {
   textContent?: string;
 }
 
-interface VoiceModeOverlayProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSendMessage: (content: string, attachments: Attachment[]) => void;
-  activeResponseText: string;
-  isLoading: boolean;
-  isFinished: boolean;
-}
+import { useChatStore } from '../store/useChatStore';
 
 const LANGUAGES = [
   { code: 'en-US', name: 'English (United States)' },
@@ -68,14 +61,17 @@ const LANGUAGES = [
   { code: 'zh-CN', name: 'Chinese (Simplified)' }
 ];
 
-export default function VoiceModeOverlay({
-  isOpen,
-  onClose,
-  onSendMessage,
-  activeResponseText,
-  isLoading,
-  isFinished
-}: VoiceModeOverlayProps) {
+export default function VoiceModeOverlay() {
+  const {
+    isVoiceModeOpen: isOpen,
+    setVoiceModeOpen,
+    sendMessage: onSendMessage,
+    voiceActiveResponse: activeResponseText,
+    voiceIsLoading: isLoading,
+    voiceIsFinished: isFinished
+  } = useChatStore();
+
+  const onClose = () => setVoiceModeOpen(false);
   // Voice System State
   const [voiceStatus, setVoiceStatus] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
   const [isMicMuted, setIsMicMuted] = useState(false);
@@ -146,7 +142,7 @@ export default function VoiceModeOverlay({
         return;
       }
 
-      console.error('Speech synthesis utterance error:', e);
+      console.warn('Speech synthesis utterance error:', e);
       isSpeakingRef.current = false;
       currentUtteranceRef.current = null;
       setTimeout(() => {
@@ -179,7 +175,7 @@ export default function VoiceModeOverlay({
     try {
       recognitionRef.current.start();
     } catch (e) {
-      console.error('Recognition start error:', e);
+      console.warn('Recognition start error:', e);
     }
   };
 
@@ -188,7 +184,7 @@ export default function VoiceModeOverlay({
       try {
         recognitionRef.current.stop();
       } catch (e) {
-        console.error('Recognition stop error:', e);
+        console.warn('Recognition stop error:', e);
       }
     }
   };
@@ -335,7 +331,7 @@ export default function VoiceModeOverlay({
 
       rec.onerror = (event: SpeechRecognitionErrorEvent) => {
         isRecognitionActiveRef.current = false;
-        console.error('Speech recognition error in overlay:', event.error);
+        console.warn('Speech recognition error in overlay:', event.error);
         if (event.error === 'not-allowed') {
           alert('Microphone access is blocked. Please enable permissions in your browser settings.');
           setIsMicMuted(true);
